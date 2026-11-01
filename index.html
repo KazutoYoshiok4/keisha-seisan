@@ -367,7 +367,7 @@ function bearerChoice(r) {
   if (!others.length && !organizerIn) return '';
   const isOther = r.bearerId !== undefined || !organizerIn;
   const selected = r.bearerId ?? (others.length ? bestRank(others).id : '');
-  return `<fieldset><legend>差額を持つ人</legend><div class="bearer-choice">
+  return `<fieldset><legend>差額を持つ人<span id="bearer-diff-${r.id}"></span></legend><div class="bearer-choice">
     <label class="chip"><input type="radio" name="bearer-mode-${r.id}" data-field="bearer-mode" value="organizer" ${isOther ? '' : 'checked'} ${organizerIn ? '' : 'disabled'}><span>幹事（${escapeHtml(memberName(organizer))}）${organizerIn ? '' : '・不参加'}</span></label>
     <label class="chip"><input type="radio" name="bearer-mode-${r.id}" data-field="bearer-mode" value="other" ${isOther ? 'checked' : ''} ${others.length ? '' : 'disabled'}><span>その他</span></label>
     ${others.length && isOther ? `<select data-field="bearer" aria-label="差額を持つ人を選ぶ">${others.map(m => `<option value="${m.id}" ${m.id === selected ? 'selected' : ''}>${escapeHtml(memberName(m))}（ランク${m.rank}）</option>`).join('')}</select>` : ''}
@@ -415,6 +415,9 @@ function refreshCalculated() {
     const target = $('detail-' + r.id);
     const numeric = numericRound(r);
     const label = escapeHtml(roundName(r));
+    // 「差額を持つ人」の見出しに、この回の差額（差額担当者がランクの金額より多く払う分）を出す。
+    const diffLabel = $('bearer-diff-' + r.id);
+    if (diffLabel) diffLabel.textContent = '';
     if (isBlankAmount(r)) {
       target.innerHTML = '<p class="help">請求額を入力すると、ランク別の金額が表示されます。</p>';
       return;
@@ -423,6 +426,7 @@ function refreshCalculated() {
       const result = C.calculateRound(state.members, state.organizerId, numeric);
       const bearer = state.members.find(m => m.id === result.bearerId);
       const bearerPays = result.amounts[bearer.id], bearerBase = result.rankAmounts[bearer.rank];
+      if (diffLabel) diffLabel.textContent = `（差額 ${signedYen(bearerPays - bearerBase)}）`;
       const ranks = Object.keys(result.rankAmounts).map(Number).sort((a, b) => a - b);
       target.innerHTML = `<p class="success">✓ ${yen(result.total)} ／ 請求額と一致</p>
         <p class="help">差額担当：${escapeHtml(memberName(bearer))}　支払 ${yen(bearerPays)}（ランク${bearer.rank}の金額 ${yen(bearerBase)} ＋ 差額 ${yen(bearerPays - bearerBase)}）</p>
