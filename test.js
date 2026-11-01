@@ -67,7 +67,14 @@ test('幹事不参加：最上位ランク・同順位はメンバー順。参�
   assert.deepEqual(auto.amounts, { c: 300, b: 300, a: 401 });
   assert.equal(calc.calculateRound(members, 'o', { ...r, bearerId: 'c' }).amounts.c, 401);
   assert.throws(() => calc.calculateRound(members, 'o', { ...r, bearerId: 'o' }), /参加者から/);
-  assert.equal(calc.calculateRound(members, 'o', { ...r, participantIds: ['o', 'a'], bearerId: 'a' }).bearerId, 'o');
+});
+test('幹事参加：未指定なら幹事が差額担当。「その他」で指定した参加者に変更できる', () => {
+  const members = [{ id: 'o', rank: 3 }, { id: 'a', rank: 1 }];
+  const r = { amount: 1050, strength: 'equal', participantIds: ['o', 'a'] };
+  assert.equal(calc.calculateRound(members, 'o', r).bearerId, 'o');
+  const chosen = calc.calculateRound(members, 'o', { ...r, bearerId: 'a' });
+  assert.equal(chosen.bearerId, 'a');
+  assert.deepEqual(chosen.amounts, { o: 500, a: 550 });
 });
 test('参加者1人・0円・100円未満・100円境界', () => {
   [0, 1, 99, 100, 999999999].forEach(amount => {

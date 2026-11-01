@@ -55,6 +55,11 @@
     .adjust-row:last-child { border:0; }
     .adjust-row button { padding:8px 10px; min-width:80px; }
     .adjust-value { display:block; font-size:13px; color:var(--muted); }
+    .adjust-summary { background:var(--pale); border-radius:10px; padding:10px 12px; font-size:14px; margin:10px 0; }
+    .bearer-choice { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+    .bearer-choice select { flex:1; min-width:150px; width:auto; }
+    .chip:has(input:disabled) { color:#7b8984; cursor:default; }
+    .rank-note { background:var(--pale); border-radius:10px; padding:10px 12px; margin:0 0 12px; }
     .success { color:var(--green); font-size:14px; font-weight:650; }
     .error { color:var(--red); font-size:14px; }
     .table-wrap { overflow:auto; border:1px solid var(--line); border-radius:10px; margin:12px 0; }
@@ -84,7 +89,8 @@
   </header>
   <p id="status" class="help" role="status" aria-live="polite"></p>
   <section class="panel" aria-labelledby="members-title">
-    <div class="heading"><h2 id="members-title">1. メンバー</h2><span class="help">ランク1が多く払う</span></div>
+    <div class="heading"><h2 id="members-title">1. メンバー</h2></div>
+    <p class="help rank-note"><strong>ランク</strong>は支払いの多さの段階です。<strong>1がいちばん多く払い</strong>、数字が大きいほど少なくなります（1〜5）。役職や年次の順に、上の人ほど小さい数字にしてください。同じ立場の人は同じランクにします。</p>
     <div class="member member-head" aria-hidden="true"><span>名前（空欄でもOK）</span><span>ランク</span><span>幹事</span><span></span></div>
     <div id="members"></div>
     <button type="button" class="wide" id="add-member">＋ メンバーを追加</button>
@@ -159,7 +165,7 @@
     const participants = members.filter(m => ids.has(m.id));
     const maxRank = Math.max(...members.map(m => m.rank));
     const bestRankMember = participants.reduce((best, m) => m.rank < best.rank ? m : best);
-    const bearerId = ids.has(organizerId) ? organizerId : (round.bearerId || bestRankMember.id);
+    const bearerId = round.bearerId === undefined || round.bearerId === null ? (ids.has(organizerId) ? organizerId : bestRankMember.id) : round.bearerId;
     check(ids.has(bearerId), '差額を持つ人は参加者から選んでください。');
     const adjustments = round.adjustments === undefined ? {} : round.adjustments;
     check(adjustments !== null && typeof adjustments === 'object' && !Array.isArray(adjustments), '微調整が不正です。');
@@ -346,14 +352,26 @@ function numericRound(round) {
 }
 const isBlankAmount = round => String(round.amount).trim() === '';
 function resetAdjustments(rounds = state.rounds) { rounds.forEach(r => { r.adjustments = {}; }); }
+// 差額担当の指定（r.bearerId）は「その他」で選んだ人だけを持つ。未指定なら幹事、幹事が不参加なら最上位ランクの人。
 function reconcileBearers() {
   state.rounds.forEach(r => {
-    if (r.participantIds.includes(state.organizerId)) { delete r.bearerId; return; }
-    if (!r.participantIds.includes(r.bearerId)) {
-      const participants = state.members.filter(m => r.participantIds.includes(m.id));
-      r.bearerId = participants.length ? participants.reduce((best, m) => m.rank < best.rank ? m : best).id : undefined;
-    }
+    if (r.bearerId !== undefined && (!r.participantIds.includes(r.bearerId) || r.bearerId === state.organizerId)) delete r.bearerId;
   });
+}
+const roundParticipants = r => state.members.filter(m => r.participantIds.includes(m.id));
+const bestRank = list => list.reduce((best, m) => m.rank < best.rank ? m : best);
+function bearerChoice(r) {
+  const organizer = state.members.find(m => m.id === state.organizerId);
+  const organizerIn = r.participantIds.includes(organizer.id);
+  const others = roundParticipants(r).filter(m => m.id !== organizer.id);
+  if (!others.length && !organizerIn) return '';
+  const isOther = r.bearerId !== undefined || !organizerIn;
+  const selected = r.bearerId ?? (others.length ? bestRank(others).id : '');
+  return `<fieldset><legend>差額を持つ人</legend><div class="bearer-choice">
+    <label class="chip"><input type="radio" name="bearer-mode-${r.id}" data-field="bearer-mode" value="organizer" ${isOther ? '' : 'checked'} ${organizerIn ? '' : 'disabled'}><span>幹事（${escapeHtml(memberName(organizer))}）${organizerIn ? '' : '・不参加'}</span></label>
+    <label class="chip"><input type="radio" name="bearer-mode-${r.id}" data-field="bearer-mode" value="other" ${isOther ? 'checked' : ''} ${others.length ? '' : 'disabled'}><span>その他</span></label>
+    ${others.length && isOther ? `<select data-field="bearer" aria-label="差額を持つ人を選ぶ">${others.map(m => `<option value="${m.id}" ${m.id === selected ? 'selected' : ''}>${escapeHtml(memberName(m))}（ランク${m.rank}）</option>`).join('')}</select>` : ''}
+  </div></fieldset>`;
 }
 function renderMembers() {
   $('members').innerHTML = state.members.map((m, i) => `
@@ -361,7 +379,7 @@ function renderMembers() {
       <label><span class="sr-only">${i + 1}人目の名前</span><input data-field="name" maxlength="80" placeholder="${C.defaultName(i)}" value="${escapeHtml(m.name)}" autocomplete="off"></label>
       <label><span class="sr-only">${i + 1}人目のランク</span><select data-field="rank">${[1,2,3,4,5].map(rank => `<option value="${rank}" ${m.rank === rank ? 'selected' : ''}>${rank}</option>`).join('')}</select></label>
       <label class="organizer"><span class="sr-only">${i + 1}人目を幹事にする</span><input type="radio" name="organizer" data-field="organizer" ${state.organizerId === m.id ? 'checked' : ''}></label>
-      <button type="button" class="delete" data-action="remove-member" aria-label="${i + 1}人目を削除" ${state.members.length === 1 ? 'disabled' : ''}>×</button>
+      <button type="button" class="delete" data-action="remove-member" aria-label="${i + 1}人目（${escapeHtml(memberName(m))}）を削除" ${state.members.length === 1 ? 'disabled' : ''}>削除</button>
     </div>`).join('');
 }
 function renderRounds() {
@@ -375,9 +393,20 @@ function renderRounds() {
         <label class="field">傾斜の強さ<select data-field="strength">${Object.entries(strengthLabels).map(([key, label]) => `<option value="${key}" ${r.strength === key ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
       </div>
       <fieldset><legend>参加者</legend><div class="participants">${state.members.map(m => `<label class="chip"><input type="checkbox" data-field="participant" value="${m.id}" ${r.participantIds.includes(m.id) ? 'checked' : ''}><span>${escapeHtml(memberName(m))}${m.id === state.organizerId ? '（幹事）' : ''}</span></label>`).join('')}</div></fieldset>
-      ${!r.participantIds.includes(state.organizerId) && r.participantIds.length ? `<label class="field">差額を持つ人（幹事は不参加）<select data-field="bearer">${state.members.filter(m => r.participantIds.includes(m.id)).map(m => `<option value="${m.id}" ${m.id === r.bearerId ? 'selected' : ''}>${escapeHtml(memberName(m))}（ランク${m.rank}）</option>`).join('')}</select></label>` : ''}
+      ${bearerChoice(r)}
       <div id="detail-${r.id}"></div>
     </article>`).join('');
+}
+const signedYen = value => (value > 0 ? '＋' : value < 0 ? '−' : '±') + yen(Math.abs(value));
+// 微調整で増減した分が、差額担当者の支払いにどう移ったかを示す。
+function adjustmentSummary(r, bearer) {
+  const parts = Object.entries(r.adjustments).map(([rank, adj]) => {
+    const count = roundParticipants(r).filter(m => m.rank === Number(rank) && m.id !== bearer.id).length;
+    return { rank, adj, count };
+  }).filter(p => p.adj !== 0 && p.count > 0).sort((a, b) => a.rank - b.rank);
+  if (!parts.length) return '';
+  const shift = -parts.reduce((sum, p) => sum + p.adj * p.count, 0);
+  return `<p class="adjust-summary">微調整の帳尻：${parts.map(p => `ランク${p.rank} ${signedYen(p.adj)}×${p.count}人＝${signedYen(p.adj * p.count)}`).join('、')}<br>→ その分、${escapeHtml(memberName(bearer))}（差額担当）の支払いが <strong>${signedYen(shift)}</strong>。この回の合計は請求額のままです。</p>`;
 }
 const hasAdjustments = round => Object.values(round.adjustments).some(value => value !== 0);
 const clearAdjustmentsButton = round => hasAdjustments(round) ? `<button type="button" data-action="clear-adjustments">この回の微調整を解除</button>` : '';
@@ -397,6 +426,7 @@ function refreshCalculated() {
       const ranks = Object.keys(result.rankAmounts).map(Number).sort((a, b) => a - b);
       target.innerHTML = `<p class="success">✓ ${yen(result.total)} ／ 請求額と一致</p>
         <p class="help">差額担当：${escapeHtml(memberName(bearer))}　支払 ${yen(bearerPays)}（ランク${bearer.rank}の金額 ${yen(bearerBase)} ＋ 差額 ${yen(bearerPays - bearerBase)}）</p>
+        ${adjustmentSummary(r, bearer)}
         <div aria-label="ランク別の微調整">${ranks.map(rank => {
           const adjustment = r.adjustments[rank] || 0;
           return `<div class="adjust-row"><div><strong>ランク${rank}</strong><span class="adjust-value">${yen(result.rankAmounts[rank])} / 人<br>調整 ${adjustment > 0 ? '+' : ''}${yen(adjustment)}</span></div>
@@ -437,7 +467,7 @@ function focusSelector(el) {
   const owner = el && el.closest && el.closest('[data-member],[data-round]');
   if (!owner) return null;
   const scope = owner.dataset.member !== undefined ? `[data-member="${CSS.escape(owner.dataset.member)}"]` : `[data-round="${CSS.escape(owner.dataset.round)}"]`;
-  if (el.dataset.field) return `${scope} [data-field="${el.dataset.field}"]` + (el.type === 'checkbox' ? `[value="${CSS.escape(el.value)}"]` : '');
+  if (el.dataset.field) return `${scope} [data-field="${el.dataset.field}"]` + (el.hasAttribute('value') && (el.type === 'checkbox' || el.type === 'radio') ? `[value="${CSS.escape(el.value)}"]` : '');
   if (el.dataset.action === 'adjust') return `${scope} [data-rank="${el.dataset.rank}"][data-delta="${el.dataset.delta}"]`;
   if (el.dataset.action) return `${scope} [data-action="${el.dataset.action}"]`;
   return null;
@@ -461,8 +491,8 @@ $('members').addEventListener('input', event => {
 $('members').addEventListener('change', event => {
   const field = event.target.dataset.field;
   const m = state.members.find(m => m.id === event.target.closest('[data-member]').dataset.member);
-  if (field === 'rank') { m.rank = Number(event.target.value); state.rounds.forEach(r => { delete r.bearerId; }); }
-  else if (field === 'organizer') { state.organizerId = m.id; state.rounds.forEach(r => { delete r.bearerId; }); }
+  if (field === 'rank') m.rank = Number(event.target.value);
+  else if (field === 'organizer') state.organizerId = m.id;
   else return;
   resetAdjustments(); changed('設定を変更し、全回の微調整をリセットしました。');
 });
@@ -473,7 +503,6 @@ $('members').addEventListener('click', event => {
   state.members = state.members.filter(m => m.id !== id);
   if (state.organizerId === id) state.organizerId = state.members[0].id;
   state.rounds.forEach(r => {
-    if (r.participantIds.includes(id)) delete r.bearerId;
     r.participantIds = r.participantIds.filter(p => p !== id);
   });
   resetAdjustments();
@@ -481,7 +510,7 @@ $('members').addEventListener('click', event => {
 });
 $('add-member').addEventListener('click', () => {
   const m = { id:uid('m'), name:'', rank:3 };
-  state.members.push(m); state.rounds.forEach(r => { r.participantIds.push(m.id); delete r.bearerId; });
+  state.members.push(m); state.rounds.forEach(r => { r.participantIds.push(m.id); });
   resetAdjustments(); changed('メンバーを全回の参加者に追加しました。微調整はリセットしました。');
   $('members').lastElementChild.querySelector('input').focus();
 });
@@ -506,9 +535,11 @@ $('rounds').addEventListener('change', event => {
   const r = state.rounds.find(r => r.id === event.target.closest('[data-round]').dataset.round);
   if (field === 'strength') r.strength = event.target.value;
   else if (field === 'bearer') r.bearerId = event.target.value;
-  else if (field === 'participant') {
+  else if (field === 'bearer-mode') {
+    if (event.target.value === 'organizer') delete r.bearerId;
+    else r.bearerId = bestRank(roundParticipants(r).filter(m => m.id !== state.organizerId)).id;
+  } else if (field === 'participant') {
     r.participantIds = event.target.checked ? [...r.participantIds, event.target.value] : r.participantIds.filter(id => id !== event.target.value);
-    delete r.bearerId;
   } else return;
   resetAdjustments([r]); changed('設定を変更し、この回の微調整をリセットしました。');
 });
