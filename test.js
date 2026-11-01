@@ -15,9 +15,9 @@ const result = calc.calculateSettlement(example.members, example.organizerId, ex
 
 test('例1：全員・全3回の金額と個人合計が完全一致', () => {
   const expected = {
-    A: [5500, 7000, 3500], B: [5500, 7000, 3500], C: [5000, 6300, null],
-    D: [5000, 6300, null], E: [5038, 6185, 3500], F: [4500, 5800, 3500],
-    G: [4500, 5800, 3500], H: [null, 7000, 3500], I: [null, 6300, 3500]
+    A: [5600, 7100, 3500], B: [5600, 7100, 3500], C: [5100, 6300, null],
+    D: [5100, 6300, null], E: [4638, 5885, 3500], F: [4500, 5800, 3500],
+    G: [4500, 5800, 3500], H: [null, 7100, 3500], I: [null, 6300, 3500]
   };
   Object.entries(expected).forEach(([id, values]) => {
     assert.deepEqual(result.rounds.map(r => r.amounts[id] ?? null), values);
@@ -52,8 +52,12 @@ test('差額担当者自身のランクにも調整後の下限を適用（同�
 });
 test('0円未満の調整を禁止。差額担当者の下限ぴったりは許可', () => {
   assert.equal(calc.canAdjustRound(pair, 'a', { ...round, amount: 0 }, 2, -100), false);
-  assert.equal(calc.canAdjustRound(pair, 'a', { ...round, amount: 1100 }, 2, 100), true);
-  assert.deepEqual(calc.calculateRound(pair, 'a', { ...round, amount: 1100, adjustments: { 2: 100 } }).amounts, { b: 600, a: 500 });
+  // 各300円・余り100円（ランク1の2人には配れず、ランク2に配るとランク1を追い越すので差額担当aが持つ）。
+  const trio = [{ id: 'a', rank: 1 }, { id: 'b', rank: 1 }, { id: 'c', rank: 2 }];
+  const trioRound = { ...round, amount: 1000, participantIds: ['a', 'b', 'c'] };
+  assert.equal(calc.canAdjustRound(trio, 'a', trioRound, 2, 100), true);
+  assert.deepEqual(calc.calculateRound(trio, 'a', { ...trioRound, adjustments: { 2: 100 } }).amounts, { b: 300, c: 400, a: 300 });
+  assert.equal(calc.canAdjustRound(trio, 'a', { ...trioRound, adjustments: { 2: 100 } }, 2, 100), false);
 });
 test('幹事不参加：最上位ランク・同順位はメンバー順。参加者への変更も可能', () => {
   const members = [{ id: 'o', rank: 3 }, { id: 'c', rank: 2 }, { id: 'a', rank: 1 }, { id: 'b', rank: 1 }];
@@ -111,6 +115,20 @@ test('ブラウザ用APIでも例1を再現し、HTML内のJavaScriptに構文�
     new vm.Script(script[1], { filename: 'index.html inline script' });
   }
 });
+test('100円単位の余りは上位ランクから配り、幹事が上位ランクより多く払わない（例1）', () => {
+  // 1次会：余り538円 → ランク1（2人）に＋100、ランク2（2人）に＋100、ランク3（幹事含む3人）は300円に足りず、残り138円を幹事が持つ。
+  assert.deepEqual(result.rounds[0].rankAmounts, { 1: 5600, 2: 5100, 3: 4500 });
+  result.rounds.forEach(r => {
+    assert.ok(r.amounts.E <= r.rankAmounts[2], '幹事Eがランク2より多く払っている');
+  });
+});
+test('余りの配分：ランク全員に配れないときと、上位ランクを追い越すときは配らない', () => {
+  const members = [{ id: 'o', rank: 3 }, { id: 'a', rank: 1 }, { id: 'b', rank: 1 }, { id: 'c', rank: 2 }];
+  // 平等・各300円（余り101円）。ランク1は2人で200円必要なので配らず、ランク2だけ＋100するとランク1を追い越すので配らない。
+  assert.deepEqual(calc.calculateRound(members, 'o', { amount: 1001, strength: 'equal', participantIds: ['a', 'b', 'c'] }).amounts, { a: 401, b: 300, c: 300 });
+  // 余り201円ならランク1の2人に＋100、残り1円を差額担当（ランク1のa）が持つ。
+  assert.deepEqual(calc.calculateRound(members, 'o', { amount: 1101, strength: 'equal', participantIds: ['a', 'b', 'c'] }).amounts, { a: 401, b: 400, c: 300 });
+});
 test('ランク1〜5・全強度・参加パターンで請求額一致と下限を維持', () => {
   const members = [1, 2, 3, 4, 5].map(rank => ({ id: String(rank), rank }));
   for (const strength of Object.keys(calc.STRENGTHS)) {
@@ -125,6 +143,9 @@ test('ランク1〜5・全強度・参加パターンで請求額一致と下限
           assert.ok(value >= 0);
           if (id !== bearer.id) assert.equal(value % 100, 0);
         });
+        // 微調整なしなら、ランクの数字が小さいほど1人あたりの金額は同じか多い。
+        const ranks = Object.keys(computed.rankAmounts).map(Number).sort((a, b) => a - b);
+        ranks.slice(1).forEach((rank, i) => assert.ok(computed.rankAmounts[ranks[i]] >= computed.rankAmounts[rank]));
       }
     }
   }

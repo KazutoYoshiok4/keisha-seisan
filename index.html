@@ -78,7 +78,7 @@
   <header>
     <p class="eyebrow">飲み会の幹事に</p>
     <h1>傾斜つき精算ツール</h1>
-    <p class="muted">ランクと参加した回を選ぶだけ。端数は幹事にまとめます。</p>
+    <p class="muted">ランクと参加した回を選ぶだけ。端数は上位ランクから配り、残りを幹事がまとめます。</p>
     <button type="button" id="load-example">例を読み込む</button>
     <p class="help">入力はこのブラウザに自動保存。端末の外には送信しません。例の表示中は保存しません。</p>
   </header>
@@ -96,6 +96,7 @@
         <select id="bulk-strength"><option value="equal">平等</option><option value="weak">弱</option><option value="medium" selected>中</option><option value="strong">強</option></select>
       </label>
       <button type="button" id="apply-strength">全回同じ傾斜にする</button>
+      <p class="help" style="margin:0;flex-basis:100%">新しく追加する回も、ここで選んだ傾斜になります。</p>
     </div>
     <p class="help">参加しない人のチェックを外してください。微調整は1人あたりの金額を動かします。</p>
     <div id="rounds"></div>
@@ -166,11 +167,24 @@
       check(/^[1-5]$/.test(rank) && Number.isSafeInteger(value) && value % 100 === 0 && Math.abs(value) <= MAX_AMOUNT, '微調整はランクごとに100円単位で指定してください。');
     });
     const weightSum = participants.reduce((sum, m) => sum + weightUnits(m.rank, maxRank, round.strength), 0);
-    const rankAmounts = {};
+    const baseAmounts = {}, rankCounts = {};
     participants.forEach(m => {
-      const rounded = Math.floor(round.amount * weightUnits(m.rank, maxRank, round.strength) / (weightSum * 100)) * 100;
-      rankAmounts[m.rank] = rounded + (adjustments[m.rank] || 0);
-      check(rankAmounts[m.rank] >= 0, '各ランクの金額は0円以上にしてください。');
+      baseAmounts[m.rank] = Math.floor(round.amount * weightUnits(m.rank, maxRank, round.strength) / (weightSum * 100)) * 100;
+      rankCounts[m.rank] = (rankCounts[m.rank] || 0) + 1;
+    });
+    // 切り捨てで出た100円単位の余りは、上位ランクから順に「そのランク全員に＋100円」できる場合だけ配る。
+    // 上位ランクの金額を追い越す配り方はしない。配りきれない残りは差額担当者が持つ。
+    let remainder = round.amount - participants.reduce((sum, m) => sum + baseAmounts[m.rank], 0);
+    const presentRanks = Object.keys(baseAmounts).map(Number).sort((a, b) => a - b);
+    presentRanks.forEach((rank, i) => {
+      const cost = 100 * rankCounts[rank];
+      const overtakes = presentRanks.slice(0, i).some(higher => baseAmounts[rank] + 100 > baseAmounts[higher]);
+      if (cost <= remainder && !overtakes) { baseAmounts[rank] += 100; remainder -= cost; }
+    });
+    const rankAmounts = {};
+    presentRanks.forEach(rank => {
+      rankAmounts[rank] = baseAmounts[rank] + (adjustments[rank] || 0);
+      check(rankAmounts[rank] >= 0, '各ランクの金額は0円以上にしてください。');
     });
     const amounts = Object.fromEntries(participants.map(m => [m.id, 0]));
     let otherTotal = 0;
@@ -236,7 +250,7 @@ const strengthLabels = { equal:'平等', weak:'弱', medium:'中', strong:'強' 
 const uid = prefix => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
 function initialState() {
   const members = [1, 2, 3].map(rank => ({ id:uid('m'), name:'', rank }));
-  return { version:1, members, organizerId:members[2].id, rounds:[{ id:uid('r'), name:'1次会', amount:'', participantIds:members.map(m => m.id), strength:'medium', adjustments:{} }] };
+  return { version:1, members, organizerId:members[2].id, defaultStrength:'medium', rounds:[{ id:uid('r'), name:'1次会', amount:'', participantIds:members.map(m => m.id), strength:'medium', adjustments:{} }] };
 }
 const isPlainObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 // 保存データを検証して状態に変換する。不正なら例外。
@@ -262,7 +276,8 @@ function parseState(raw) {
     return { id:r.id, name:r.name ?? `${i + 1}次会`, amount:r.amount, participantIds:r.participantIds.slice(), strength:r.strength, bearerId:r.participantIds.includes(r.bearerId) ? r.bearerId : undefined, adjustments };
   });
   if (new Set(rounds.map(r => r.id)).size !== rounds.length) throw Error();
-  return { version:1, members, organizerId:saved.organizerId, rounds };
+  if (saved.defaultStrength !== undefined && (typeof saved.defaultStrength !== 'string' || !Object.hasOwn(strengthLabels, saved.defaultStrength))) throw Error();
+  return { version:1, members, organizerId:saved.organizerId, defaultStrength:saved.defaultStrength ?? 'medium', rounds };
 }
 // 計算できなくなる保存済みの微調整は、その回だけ解除する。
 function dropInvalidAdjustments(target) {
@@ -416,13 +431,26 @@ function renderUndo() {
 }
 function clearUndo() { if (undoState) { undoState = null; renderUndo(); } }
 const snapshot = () => JSON.parse(JSON.stringify(state));
-function renderAll() { renderMembers(); renderRounds(); refreshCalculated(); }
+function renderAll() { $('bulk-strength').value = state.defaultStrength; renderMembers(); renderRounds(); refreshCalculated(); }
+// 描き直しで消える要素にフォーカスがあるとき、描き直し後に同じ役割の要素を探すためのセレクタ。
+function focusSelector(el) {
+  const owner = el && el.closest && el.closest('[data-member],[data-round]');
+  if (!owner) return null;
+  const scope = owner.dataset.member !== undefined ? `[data-member="${CSS.escape(owner.dataset.member)}"]` : `[data-round="${CSS.escape(owner.dataset.round)}"]`;
+  if (el.dataset.field) return `${scope} [data-field="${el.dataset.field}"]` + (el.type === 'checkbox' ? `[value="${CSS.escape(el.value)}"]` : '');
+  if (el.dataset.action === 'adjust') return `${scope} [data-rank="${el.dataset.rank}"][data-delta="${el.dataset.delta}"]`;
+  if (el.dataset.action) return `${scope} [data-action="${el.dataset.action}"]`;
+  return null;
+}
 // undo を渡すと、その操作を取り消せる。渡さない変更をすると取り消しは消える。
 function changed(message, full = true, undo = null) {
+  const selector = focusSelector(document.activeElement);
   $('status').textContent = message || '';
   undoState = undo; renderUndo();
   if (full) renderAll(); else refreshCalculated();
   save();
+  const next = selector && document.querySelector(selector);
+  if (next && next !== document.activeElement && !next.disabled) next.focus({ preventScroll:true });
 }
 $('members').addEventListener('input', event => {
   if (event.target.dataset.field !== 'name') return;
@@ -499,18 +527,20 @@ $('rounds').addEventListener('click', event => {
     if (!C.canAdjustRound(state.members, state.organizerId, numericRound(r), rank, delta)) return;
     r.adjustments[rank] = (r.adjustments[rank] || 0) + delta;
     changed('微調整を反映しました。差額は自動で差額担当者に回ります。', false);
-    const next = document.querySelector(`[data-round="${r.id}"] [data-rank="${rank}"][data-delta="${delta}"]`);
-    if (next && !next.disabled) next.focus({ preventScroll:true });
   }
 });
 $('add-round').addEventListener('click', () => {
-  state.rounds.push({ id:uid('r'), name:nextRoundName(), amount:'', participantIds:state.members.map(m => m.id), strength:$('bulk-strength').value, adjustments:{} });
+  state.rounds.push({ id:uid('r'), name:nextRoundName(), amount:'', participantIds:state.members.map(m => m.id), strength:state.defaultStrength, adjustments:{} });
   changed('全員が参加する回を追加しました。');
   $('rounds').lastElementChild.querySelector('[data-field="amount"]').focus();
 });
 $('apply-strength').addEventListener('click', () => {
-  state.rounds.forEach(r => { r.strength = $('bulk-strength').value; });
+  state.rounds.forEach(r => { r.strength = state.defaultStrength; });
   resetAdjustments(); changed('全回の傾斜をそろえ、微調整をリセットしました。');
+});
+$('bulk-strength').addEventListener('change', event => {
+  state.defaultStrength = event.target.value;
+  clearUndo(); save();
 });
 $('undo').addEventListener('click', () => {
   if (!undoState) return;
@@ -521,7 +551,7 @@ $('load-example').addEventListener('click', () => {
   if (exampleUndo) {
     state = exampleUndo; exampleUndo = null; $('load-example').textContent = '例を読み込む'; changed('例の読み込み前の入力に戻しました。');
   } else {
-    exampleUndo = snapshot(); state = C.createExample();
+    exampleUndo = snapshot(); state = { ...C.createExample(), defaultStrength:'medium' };
     $('load-example').textContent = '例を読み込む前に戻す'; changed('例1を表示中です。例の表示中は保存しないので、ページを閉じても元の入力は残ります。');
   }
 });
