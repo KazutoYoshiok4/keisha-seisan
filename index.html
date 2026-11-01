@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <meta name="theme-color" content="#176b58">
+  <title>傾斜つき精算ツール</title>
+  <style>
+    :root { color-scheme: light; --ink:#192d29; --muted:#546a64; --green:#176b58; --pale:#eaf4ef; --line:#d6e2dc; --red:#a52b37; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; background:#f4f7f4; color:var(--ink); line-height:1.6; }
+    main { max-width:880px; margin:auto; padding:24px 16px 64px; }
+    h1 { margin:0; font-size:clamp(24px,5vw,34px); letter-spacing:-.04em; }
+    h2 { font-size:21px; margin:0; }
+    h3 { margin:0; font-size:18px; }
+    p { margin:8px 0 16px; }
+    .eyebrow { font-size:12px; letter-spacing:.12em; color:var(--green); font-weight:800; margin:0 0 4px; }
+    .muted, .help { color:var(--muted); font-size:14px; }
+    header { padding:8px 0 20px; }
+    .panel { background:white; border:1px solid var(--line); border-radius:18px; padding:20px; margin-bottom:18px; }
+    .heading, .row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .heading { margin-bottom:12px; flex-wrap:wrap; }
+    button, input, select, textarea { font:inherit; }
+    button, select, input:not([type=checkbox]):not([type=radio]) { min-height:46px; }
+    button { border:1px solid var(--line); border-radius:10px; background:white; color:var(--green); font-weight:700; padding:8px 14px; cursor:pointer; touch-action:manipulation; }
+    button:hover:not(:disabled) { background:var(--pale); }
+    button.primary { background:var(--green); color:white; border-color:var(--green); }
+    button.primary:hover:not(:disabled) { background:#105443; }
+    button:disabled { color:#7b8984; background:#f1f3f1; cursor:default; opacity:.65; }
+    button.delete { color:var(--red); padding:8px 10px; }
+    input:not([type=checkbox]):not([type=radio]), select, textarea { width:100%; border:1px solid #a7bdb3; border-radius:9px; padding:8px 10px; background:white; color:var(--ink); }
+    input[type=checkbox], input[type=radio] { width:21px; height:21px; accent-color:var(--green); flex-shrink:0; margin:0; }
+    :focus-visible { outline:3px solid #d18c26; outline-offset:3px; }
+    .member { display:grid; grid-template-columns:minmax(0,1fr) 76px 64px 48px; align-items:center; gap:8px; padding:9px 0; border-top:1px solid var(--line); }
+    .member-head { font-size:12px; color:var(--muted); padding:0 0 5px; border:0; }
+    .organizer { display:flex; justify-content:center; align-items:center; min-height:46px; cursor:pointer; }
+    .wide { width:100%; margin-top:12px; }
+    .bulk { display:flex; align-items:end; flex-wrap:wrap; gap:10px; background:var(--pale); padding:12px; border-radius:12px; margin:12px 0 16px; }
+    .bulk label { flex:1; min-width:100px; }
+    label.field { display:block; font-size:14px; font-weight:650; }
+    label.field input, label.field select { margin-top:5px; }
+    .round { border:1px solid var(--line); border-radius:13px; padding:16px; margin:14px 0; }
+    .round .heading { margin-bottom:14px; }
+    .fields { display:grid; grid-template-columns:1.4fr 1fr; gap:12px; }
+    .fields .full { grid-column:1 / -1; }
+    .toast { position:fixed; left:50%; bottom:max(16px, env(safe-area-inset-bottom)); transform:translateX(-50%); width:min(560px, calc(100% - 20px)); display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--ink); color:white; border-radius:12px; padding:8px 8px 8px 16px; box-shadow:0 6px 20px rgba(0,0,0,.25); z-index:10; font-size:14px; }
+    .toast button { flex-shrink:0; }
+    fieldset { border:0; padding:0; margin:16px 0; min-width:0; }
+    legend { padding:0; font-size:14px; font-weight:650; margin-bottom:7px; }
+    .participants { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip { display:flex; align-items:center; gap:8px; min-height:46px; padding:8px 11px; border:1px solid var(--line); border-radius:10px; cursor:pointer; max-width:100%; overflow-wrap:anywhere; }
+    .chip:has(input:checked) { background:var(--pale); border-color:#9cc7b6; }
+    .adjust-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); }
+    .adjust-row:last-child { border:0; }
+    .adjust-row button { padding:8px 10px; min-width:80px; }
+    .adjust-value { display:block; font-size:13px; color:var(--muted); }
+    .success { color:var(--green); font-size:14px; font-weight:650; }
+    .error { color:var(--red); font-size:14px; }
+    .table-wrap { overflow:auto; border:1px solid var(--line); border-radius:10px; margin:12px 0; }
+    table { width:100%; border-collapse:collapse; white-space:nowrap; font-size:14px; }
+    th, td { padding:12px; border-bottom:1px solid var(--line); text-align:right; font-variant-numeric:tabular-nums; }
+    thead th { background:#f1f6f2; color:var(--muted); }
+    th:first-child { text-align:left; position:sticky; left:0; background:white; max-width:180px; overflow:hidden; text-overflow:ellipsis; }
+    thead th:first-child, tfoot th:first-child { background:#f1f6f2; }
+    td:last-child { font-weight:750; background:#f0f7f2; }
+    tfoot th, tfoot td { border-bottom:0; background:#f1f6f2; }
+    .sum { font-size:24px; font-weight:800; color:var(--green); }
+    #copy-text { min-height:260px; resize:vertical; margin-top:10px; }
+    #status { min-height:24px; margin:0 0 12px; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    [hidden] { display:none !important; }
+    @media(max-width:480px) { main { padding:18px 10px 48px; } .panel { padding:15px 12px; } .round { padding:13px 10px; } .member { gap:6px; grid-template-columns:minmax(0,1fr) 68px 48px 44px; } .member button { padding:8px 0; } .adjust-row { gap:5px; } .adjust-row button { min-width:76px; } th,td { padding:11px 9px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">飲み会の幹事に</p>
+    <h1>傾斜つき精算ツール</h1>
+    <p class="muted">ランクと参加した回を選ぶだけ。端数は幹事にまとめます。</p>
+    <button type="button" id="load-example">例を読み込む</button>
+    <p class="help">入力はこのブラウザに自動保存。端末の外には送信しません。例の表示中は保存しません。</p>
+  </header>
+  <p id="status" class="help" role="status" aria-live="polite"></p>
+  <section class="panel" aria-labelledby="members-title">
+    <div class="heading"><h2 id="members-title">1. メンバー</h2><span class="help">ランク1が多く払う</span></div>
+    <div class="member member-head" aria-hidden="true"><span>名前（空欄でもOK）</span><span>ランク</span><span>幹事</span><span></span></div>
+    <div id="members"></div>
+    <button type="button" class="wide" id="add-member">＋ メンバーを追加</button>
+  </section>
+  <section class="panel" aria-labelledby="rounds-title">
+    <h2 id="rounds-title">2. 回ごとの精算</h2>
+    <div class="bulk">
+      <label class="field" for="bulk-strength">まとめて設定する傾斜
+        <select id="bulk-strength"><option value="equal">平等</option><option value="weak">弱</option><option value="medium" selected>中</option><option value="strong">強</option></select>
+      </label>
+      <button type="button" id="apply-strength">全回同じ傾斜にする</button>
+    </div>
+    <p class="help">参加しない人のチェックを外してください。微調整は1人あたりの金額を動かします。</p>
+    <div id="rounds"></div>
+    <button type="button" class="wide" id="add-round">＋ 回を追加</button>
+    <p class="help">人数・ランク・幹事・請求額・参加者・傾斜・差額担当を変えると、該当する回の微調整はリセットされます。</p>
+  </section>
+  <section class="panel" aria-labelledby="results-title">
+    <div class="heading"><h2 id="results-title">3. 精算結果</h2><a href="#rounds-title">入力に戻る ↑</a></div>
+    <div id="results"></div>
+    <button type="button" class="primary wide" id="copy" disabled>LINE用の文面をコピー</button>
+    <p id="copy-status" class="help" role="status" aria-live="polite"></p>
+    <div id="copy-fallback" hidden>
+      <label class="field" for="copy-text">コピーできない場合は、下の文面を選択してコピーしてください。</label>
+      <textarea id="copy-text" readonly></textarea>
+      <button type="button" class="wide" id="select-text">文面をすべて選択</button>
+    </div>
+  </section>
+  <div id="undo-bar" class="toast" hidden><span id="undo-message" role="status" aria-live="polite"></span><button type="button" id="undo">取り消す</button></div>
+  <footer class="help">ログイン不要・100円単位で切り捨て。差額を持つ人だけ1円単位になります。</footer>
+</main>
+<!-- 計算ロジック（DOMに依存しない純粋関数。test.js はこのブロックを取り出して検証する） -->
+<script id="settlement-calc">
+(function (root, factory) {
+  'use strict';
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else root.SettlementCalc = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+  const STRENGTHS = Object.freeze({ equal: 0, weak: 5, medium: 10, strong: 20 });
+  const MAX_AMOUNT = 999999999;
+  function check(condition, message) {
+    if (!condition) throw new Error(message);
+  }
+  function validateMembers(members) {
+    check(Array.isArray(members) && members.length > 0, 'メンバーを1人以上登録してください。');
+    const ids = new Set();
+    members.forEach(member => {
+      check(member && typeof member.id === 'string' && member.id.length > 0 && !ids.has(member.id), 'メンバーIDが不正です。');
+      check(Number.isInteger(member.rank) && member.rank >= 1 && member.rank <= 5, 'ランクは1〜5で指定してください。');
+      ids.add(member.id);
+    });
+  }
+  // 重みを200倍した整数で扱い、100円の境界で浮動小数点の誤差を避ける。
+  function weightUnits(rank, maxRank, strength) {
+    check(typeof strength === 'string' && Object.hasOwn(STRENGTHS, strength), '傾斜の強さが不正です。');
+    check(Number.isInteger(maxRank) && maxRank >= 1 && maxRank <= 5 && Number.isInteger(rank) && rank >= 1 && rank <= maxRank, 'ランクが不正です。');
+    return 200 + STRENGTHS[strength] * (maxRank + 1 - 2 * rank);
+  }
+  function getWeight(rank, maxRank, strength) {
+    return weightUnits(rank, maxRank, strength) / 200;
+  }
+  function calculateRound(members, organizerId, round) {
+    validateMembers(members);
+    check(members.some(m => m.id === organizerId), '幹事を選んでください。');
+    check(round && Number.isSafeInteger(round.amount) && round.amount >= 0 && round.amount <= MAX_AMOUNT, '請求額は0〜999,999,999円の整数で入力してください。');
+    check(Array.isArray(round.participantIds) && round.participantIds.length > 0, '参加者を1人以上選んでください。');
+    const ids = new Set(round.participantIds);
+    check(ids.size === round.participantIds.length && [...ids].every(id => members.some(m => m.id === id)), '参加者の指定が不正です。');
+    const participants = members.filter(m => ids.has(m.id));
+    const maxRank = Math.max(...members.map(m => m.rank));
+    const bestRankMember = participants.reduce((best, m) => m.rank < best.rank ? m : best);
+    const bearerId = ids.has(organizerId) ? organizerId : (round.bearerId || bestRankMember.id);
+    check(ids.has(bearerId), '差額を持つ人は参加者から選んでください。');
+    const adjustments = round.adjustments === undefined ? {} : round.adjustments;
+    check(adjustments !== null && typeof adjustments === 'object' && !Array.isArray(adjustments), '微調整が不正です。');
+    Object.entries(adjustments).forEach(([rank, value]) => {
+      check(/^[1-5]$/.test(rank) && Number.isSafeInteger(value) && value % 100 === 0 && Math.abs(value) <= MAX_AMOUNT, '微調整はランクごとに100円単位で指定してください。');
+    });
+    const weightSum = participants.reduce((sum, m) => sum + weightUnits(m.rank, maxRank, round.strength), 0);
+    const rankAmounts = {};
+    participants.forEach(m => {
+      const rounded = Math.floor(round.amount * weightUnits(m.rank, maxRank, round.strength) / (weightSum * 100)) * 100;
+      rankAmounts[m.rank] = rounded + (adjustments[m.rank] || 0);
+      check(rankAmounts[m.rank] >= 0, '各ランクの金額は0円以上にしてください。');
+    });
+    const amounts = Object.fromEntries(participants.map(m => [m.id, 0]));
+    let otherTotal = 0;
+    participants.forEach(m => {
+      if (m.id !== bearerId) {
+        amounts[m.id] = rankAmounts[m.rank];
+        otherTotal += amounts[m.id];
+      }
+    });
+    amounts[bearerId] = round.amount - otherTotal;
+    const bearer = participants.find(m => m.id === bearerId);
+    check(amounts[bearerId] >= rankAmounts[bearer.rank], '差額を持つ人の金額が、同じランクの調整後の金額を下回ります。');
+    const total = Object.values(amounts).reduce((sum, value) => sum + value, 0);
+    return { amounts, rankAmounts, bearerId, total, matches: total === round.amount, maxRank };
+  }
+  function canAdjustRound(members, organizerId, round, rank, delta) {
+    try {
+      if (!members.some(m => m.rank === rank && round.participantIds.includes(m.id)) || (delta !== 100 && delta !== -100)) return false;
+      calculateRound(members, organizerId, {
+        ...round,
+        adjustments: { ...round.adjustments, [rank]: ((round.adjustments || {})[rank] || 0) + delta }
+      });
+      return true;
+    } catch (_) { return false; }
+  }
+  function calculateSettlement(members, organizerId, rounds) {
+    validateMembers(members);
+    check(Array.isArray(rounds) && rounds.length > 0, '回を1つ以上追加してください。');
+    const results = rounds.map(round => calculateRound(members, organizerId, round));
+    const totals = Object.fromEntries(members.map(m => [m.id, results.reduce((sum, r) => sum + (Object.hasOwn(r.amounts, m.id) ? r.amounts[m.id] : 0), 0)]));
+    const grandTotal = results.reduce((sum, r) => sum + r.total, 0);
+    check(Number.isSafeInteger(grandTotal), '合計金額が大きすぎます。');
+    return { rounds: results, totals, grandTotal };
+  }
+  function defaultName(index) {
+    let result = '';
+    for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)) result = String.fromCharCode(65 + (n - 1) % 26) + result;
+    return result;
+  }
+  function createExample() {
+    const members = [1, 1, 2, 2, 3, 3, 3, 1, 2].map((rank, i) => ({ id: defaultName(i), name: defaultName(i), rank }));
+    return {
+      version: 1, members, organizerId: 'E',
+      rounds: [
+        { id: 'r1', name: '1次会', amount: 35038, participantIds: ['A', 'B', 'C', 'D', 'E', 'F', 'G'], strength: 'medium', adjustments: {} },
+        { id: 'r2', name: '2次会', amount: 57685, participantIds: members.map(m => m.id), strength: 'medium', adjustments: { 2: -100, 3: 100 } },
+        { id: 'r3', name: '3次会', amount: 24500, participantIds: ['A', 'B', 'E', 'F', 'G', 'H', 'I'], strength: 'equal', adjustments: {} }
+      ]
+    };
+  }
+  return Object.freeze({ STRENGTHS, MAX_AMOUNT, getWeight, calculateRound, canAdjustRound, calculateSettlement, defaultName, createExample });
+});
+</script>
+<script>
+'use strict';
+const C = SettlementCalc;
+const STORAGE_KEY = 'keisha-settlement-v0';
+const BACKUP_KEY = STORAGE_KEY + '-unreadable-backup';
+const $ = id => document.getElementById(id);
+const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const yen = value => value.toLocaleString('ja-JP') + '円';
+const strengthLabels = { equal:'平等', weak:'弱', medium:'中', strong:'強' };
+const uid = prefix => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
+function initialState() {
+  const members = [1, 2, 3].map(rank => ({ id:uid('m'), name:'', rank }));
+  return { version:1, members, organizerId:members[2].id, rounds:[{ id:uid('r'), name:'1次会', amount:'', participantIds:members.map(m => m.id), strength:'medium', adjustments:{} }] };
+}
+const isPlainObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+// 保存データを検証して状態に変換する。不正なら例外。
+function parseState(raw) {
+  const saved = JSON.parse(raw);
+  if (!isPlainObject(saved) || saved.version !== 1 || !Array.isArray(saved.members) || !saved.members.length || !Array.isArray(saved.rounds)) throw Error();
+  const members = saved.members.map(m => {
+    if (!isPlainObject(m) || typeof m.id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(m.id) || typeof m.name !== 'string' || m.name.length > 80 || !Number.isInteger(m.rank) || m.rank < 1 || m.rank > 5) throw Error();
+    return { id:m.id, name:m.name, rank:m.rank };
+  });
+  const ids = new Set(members.map(m => m.id));
+  if (ids.size !== members.length || !ids.has(saved.organizerId)) throw Error();
+  const rounds = saved.rounds.map((r, i) => {
+    if (!isPlainObject(r) || typeof r.id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(r.id) || !['string', 'number'].includes(typeof r.amount) || String(r.amount).length > 30 || typeof r.strength !== 'string' || !Object.hasOwn(strengthLabels, r.strength) || !Array.isArray(r.participantIds) || r.participantIds.some(id => !ids.has(id)) || new Set(r.participantIds).size !== r.participantIds.length) throw Error();
+    if (r.name !== undefined && (typeof r.name !== 'string' || r.name.length > 40)) throw Error();
+    if (r.adjustments !== undefined && !isPlainObject(r.adjustments)) throw Error();
+    const adjustments = {};
+    for (const [rank, value] of Object.entries(r.adjustments || {})) {
+      if (!/^[1-5]$/.test(rank) || !Number.isSafeInteger(value) || value % 100 !== 0 || Math.abs(value) > C.MAX_AMOUNT) throw Error();
+      adjustments[rank] = value;
+    }
+    // 回の名前がない旧データは、保存時点の並び順で名付ける。
+    return { id:r.id, name:r.name ?? `${i + 1}次会`, amount:r.amount, participantIds:r.participantIds.slice(), strength:r.strength, bearerId:r.participantIds.includes(r.bearerId) ? r.bearerId : undefined, adjustments };
+  });
+  if (new Set(rounds.map(r => r.id)).size !== rounds.length) throw Error();
+  return { version:1, members, organizerId:saved.organizerId, rounds };
+}
+// 計算できなくなる保存済みの微調整は、その回だけ解除する。
+function dropInvalidAdjustments(target) {
+  let dropped = 0;
+  target.rounds.forEach(r => {
+    if (!Object.keys(r.adjustments).length) return;
+    const numeric = numericRound(r);
+    try { C.calculateRound(target.members, target.organizerId, numeric); }
+    catch (_) {
+      try { C.calculateRound(target.members, target.organizerId, { ...numeric, adjustments:{} }); r.adjustments = {}; dropped++; } catch (_) { /* 請求額未入力などは微調整と無関係なので保持 */ }
+    }
+  });
+  return dropped;
+}
+let storageNotice = '';
+function loadState() {
+  let raw = null;
+  try {
+    raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return initialState();
+    const loaded = parseState(raw);
+    const dropped = dropInvalidAdjustments(loaded);
+    storageNotice = '前回の入力を読み込みました。' + (dropped ? `計算できない微調整があった${dropped}回分は、微調整を解除しました。` : '');
+    return loaded;
+  } catch (_) {
+    // 読み込めない原本は上書きされる前に退避しておく。
+    let backedUp = false;
+    if (raw) { try { localStorage.setItem(BACKUP_KEY, raw); backedUp = true; } catch (_) { /* 退避できなくても続行 */ } }
+    storageNotice = backedUp
+      ? '保存データを読み込めないため、新しく開始しました。元のデータは別の場所に退避してあります。'
+      : '保存データを読み込めないため、新しく開始しました。自動保存できない場合もそのまま使えます。';
+    return initialState();
+  }
+}
+let state = loadState();
+let settlement = null;
+let storageFailed = false;
+let revision = 0;
+// 例を表示している間は、例を読み込む前の状態をここに持ち、保存領域には書き込まない。
+let exampleUndo = null;
+// 削除の直前の状態。次の変更をすると消える。
+let undoState = null;
+function memberName(member) { return member.name.trim() || C.defaultName(state.members.indexOf(member)); }
+function roundName(round) { return round.name.trim() || `${state.rounds.indexOf(round) + 1}回目`; }
+function nextRoundName() {
+  const used = state.rounds.map(r => (/^(\d+)次会$/.exec(r.name.trim()) || [])[1]).filter(Boolean).map(Number);
+  return `${used.length ? Math.max(...used) + 1 : state.rounds.length + 1}次会`;
+}
+function save() {
+  revision++;
+  $('copy-fallback').hidden = true;
+  $('copy-text').value = '';
+  $('copy-status').textContent = '';
+  if (exampleUndo) return;
+  const wasFailed = storageFailed;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); storageFailed = false; }
+  catch (_) { storageFailed = true; }
+  if (storageFailed) $('status').textContent = '自動保存できません。この画面を開いている間はそのまま使えます。';
+  else if (wasFailed) $('status').textContent = '自動保存が再開しました。';
+}
+function numericRound(round) {
+  // 全角数字・全角カンマ・「円」「¥」・空白を許容する。
+  const text = String(round.amount).normalize('NFKC').replace(/[円¥\\s]/g, '');
+  const valid = /^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(text);
+  return { ...round, amount:valid ? Number(text.replace(/,/g, '')) : NaN };
+}
+const isBlankAmount = round => String(round.amount).trim() === '';
+function resetAdjustments(rounds = state.rounds) { rounds.forEach(r => { r.adjustments = {}; }); }
+function reconcileBearers() {
+  state.rounds.forEach(r => {
+    if (r.participantIds.includes(state.organizerId)) { delete r.bearerId; return; }
+    if (!r.participantIds.includes(r.bearerId)) {
+      const participants = state.members.filter(m => r.participantIds.includes(m.id));
+      r.bearerId = participants.length ? participants.reduce((best, m) => m.rank < best.rank ? m : best).id : undefined;
+    }
+  });
+}
+function renderMembers() {
+  $('members').innerHTML = state.members.map((m, i) => `
+    <div class="member" data-member="${m.id}">
+      <label><span class="sr-only">${i + 1}人目の名前</span><input data-field="name" maxlength="80" placeholder="${C.defaultName(i)}" value="${escapeHtml(m.name)}" autocomplete="off"></label>
+      <label><span class="sr-only">${i + 1}人目のランク</span><select data-field="rank">${[1,2,3,4,5].map(rank => `<option value="${rank}" ${m.rank === rank ? 'selected' : ''}>${rank}</option>`).join('')}</select></label>
+      <label class="organizer"><span class="sr-only">${i + 1}人目を幹事にする</span><input type="radio" name="organizer" data-field="organizer" ${state.organizerId === m.id ? 'checked' : ''}></label>
+      <button type="button" class="delete" data-action="remove-member" aria-label="${i + 1}人目を削除" ${state.members.length === 1 ? 'disabled' : ''}>×</button>
+    </div>`).join('');
+}
+function renderRounds() {
+  reconcileBearers();
+  $('rounds').innerHTML = state.rounds.map(r => `
+    <article class="round" data-round="${r.id}" aria-labelledby="title-${r.id}">
+      <div class="heading"><h3 id="title-${r.id}">${escapeHtml(roundName(r))}</h3><button type="button" class="delete" data-action="remove-round" aria-label="${escapeHtml(roundName(r))}を削除">この回を削除</button></div>
+      <div class="fields">
+        <label class="field full">回の名前<input data-field="round-name" maxlength="40" placeholder="例：1次会、焼肉、カラオケ" value="${escapeHtml(r.name)}" autocomplete="off"></label>
+        <label class="field">請求額（円）<input data-field="amount" inputmode="numeric" maxlength="30" placeholder="35,038" value="${escapeHtml(r.amount)}" autocomplete="off" aria-describedby="detail-${r.id}"></label>
+        <label class="field">傾斜の強さ<select data-field="strength">${Object.entries(strengthLabels).map(([key, label]) => `<option value="${key}" ${r.strength === key ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
+      </div>
+      <fieldset><legend>参加者</legend><div class="participants">${state.members.map(m => `<label class="chip"><input type="checkbox" data-field="participant" value="${m.id}" ${r.participantIds.includes(m.id) ? 'checked' : ''}><span>${escapeHtml(memberName(m))}${m.id === state.organizerId ? '（幹事）' : ''}</span></label>`).join('')}</div></fieldset>
+      ${!r.participantIds.includes(state.organizerId) && r.participantIds.length ? `<label class="field">差額を持つ人（幹事は不参加）<select data-field="bearer">${state.members.filter(m => r.participantIds.includes(m.id)).map(m => `<option value="${m.id}" ${m.id === r.bearerId ? 'selected' : ''}>${escapeHtml(memberName(m))}（ランク${m.rank}）</option>`).join('')}</select></label>` : ''}
+      <div id="detail-${r.id}"></div>
+    </article>`).join('');
+}
+const hasAdjustments = round => Object.values(round.adjustments).some(value => value !== 0);
+const clearAdjustmentsButton = round => hasAdjustments(round) ? `<button type="button" data-action="clear-adjustments">この回の微調整を解除</button>` : '';
+function refreshCalculated() {
+  state.rounds.forEach(r => {
+    const target = $('detail-' + r.id);
+    const numeric = numericRound(r);
+    const label = escapeHtml(roundName(r));
+    if (isBlankAmount(r)) {
+      target.innerHTML = '<p class="help">請求額を入力すると、ランク別の金額が表示されます。</p>';
+      return;
+    }
+    try {
+      const result = C.calculateRound(state.members, state.organizerId, numeric);
+      const bearer = state.members.find(m => m.id === result.bearerId);
+      const bearerPays = result.amounts[bearer.id], bearerBase = result.rankAmounts[bearer.rank];
+      const ranks = Object.keys(result.rankAmounts).map(Number).sort((a, b) => a - b);
+      target.innerHTML = `<p class="success">✓ ${yen(result.total)} ／ 請求額と一致</p>
+        <p class="help">差額担当：${escapeHtml(memberName(bearer))}　支払 ${yen(bearerPays)}（ランク${bearer.rank}の金額 ${yen(bearerBase)} ＋ 差額 ${yen(bearerPays - bearerBase)}）</p>
+        <div aria-label="ランク別の微調整">${ranks.map(rank => {
+          const adjustment = r.adjustments[rank] || 0;
+          return `<div class="adjust-row"><div><strong>ランク${rank}</strong><span class="adjust-value">${yen(result.rankAmounts[rank])} / 人<br>調整 ${adjustment > 0 ? '+' : ''}${yen(adjustment)}</span></div>
+            <button type="button" data-action="adjust" data-rank="${rank}" data-delta="-100" aria-label="${label}のランク${rank}を100円減らす" ${C.canAdjustRound(state.members, state.organizerId, numeric, rank, -100) ? '' : 'disabled'}>−100円</button>
+            <button type="button" data-action="adjust" data-rank="${rank}" data-delta="100" aria-label="${label}のランク${rank}を100円増やす" ${C.canAdjustRound(state.members, state.organizerId, numeric, rank, 100) ? '' : 'disabled'}>＋100円</button></div>`;
+        }).join('')}</div>${clearAdjustmentsButton(r)}<p class="help">差額担当者は同ランクの調整後の金額以上を負担します。0円未満になる操作もできません。</p>`;
+    } catch (error) {
+      target.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>${clearAdjustmentsButton(r)}`;
+    }
+  });
+  try {
+    settlement = C.calculateSettlement(state.members, state.organizerId, state.rounds.map(numericRound));
+    $('results').innerHTML = `<div class="row"><span class="help">全回の合計</span><span class="sum">${yen(settlement.grandTotal)}</span></div>
+      <p class="help">横にスクロールして回別金額を確認できます。— は不参加。</p>
+      <div class="table-wrap" tabindex="0" role="region" aria-label="1人ごとの回別金額と合計"><table><caption class="sr-only">精算結果</caption>
+      <thead><tr><th scope="col">名前</th>${state.rounds.map(r => `<th scope="col">${escapeHtml(roundName(r))}</th>`).join('')}<th scope="col">合計</th></tr></thead>
+      <tbody>${state.members.map(m => `<tr><th scope="row" title="${escapeHtml(memberName(m))}">${escapeHtml(memberName(m))}${m.id === state.organizerId ? '（幹事）' : ''}</th>${settlement.rounds.map(r => `<td>${Object.hasOwn(r.amounts, m.id) ? yen(r.amounts[m.id]) : '—'}</td>`).join('')}<td>${yen(settlement.totals[m.id])}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><th scope="row">請求額</th>${settlement.rounds.map(r => `<td>${yen(r.total)}</td>`).join('')}<td>${yen(settlement.grandTotal)}</td></tr></tfoot></table></div>
+      ${settlement.rounds.map((r, i) => `<div class="success">✓ ${escapeHtml(roundName(state.rounds[i]))}：${yen(r.total)} ／ 請求額と一致</div>`).join('')}`;
+    $('copy').disabled = false;
+  } catch (_) {
+    settlement = null;
+    $('copy').disabled = true;
+    $('results').innerHTML = state.rounds.length
+      ? '<p class="help">各回の請求額と参加者を確認すると、全員の精算結果がここに表示されます。</p>'
+      : '<p class="help">回を追加すると、全員の精算結果がここに表示されます。</p>';
+  }
+}
+function renderUndo() {
+  $('undo-bar').hidden = !undoState;
+  $('undo-message').textContent = undoState ? undoState.label : '';
+}
+function clearUndo() { if (undoState) { undoState = null; renderUndo(); } }
+const snapshot = () => JSON.parse(JSON.stringify(state));
+function renderAll() { renderMembers(); renderRounds(); refreshCalculated(); }
+// undo を渡すと、その操作を取り消せる。渡さない変更をすると取り消しは消える。
+function changed(message, full = true, undo = null) {
+  $('status').textContent = message || '';
+  undoState = undo; renderUndo();
+  if (full) renderAll(); else refreshCalculated();
+  save();
+}
+$('members').addEventListener('input', event => {
+  if (event.target.dataset.field !== 'name') return;
+  const m = state.members.find(m => m.id === event.target.closest('[data-member]').dataset.member);
+  m.name = event.target.value;
+  clearUndo(); renderRounds(); refreshCalculated(); save();
+});
+$('members').addEventListener('change', event => {
+  const field = event.target.dataset.field;
+  const m = state.members.find(m => m.id === event.target.closest('[data-member]').dataset.member);
+  if (field === 'rank') { m.rank = Number(event.target.value); state.rounds.forEach(r => { delete r.bearerId; }); }
+  else if (field === 'organizer') { state.organizerId = m.id; state.rounds.forEach(r => { delete r.bearerId; }); }
+  else return;
+  resetAdjustments(); changed('設定を変更し、全回の微調整をリセットしました。');
+});
+$('members').addEventListener('click', event => {
+  if (event.target.dataset.action !== 'remove-member' || state.members.length === 1) return;
+  const id = event.target.closest('[data-member]').dataset.member;
+  const before = snapshot(), name = memberName(state.members.find(m => m.id === id));
+  state.members = state.members.filter(m => m.id !== id);
+  if (state.organizerId === id) state.organizerId = state.members[0].id;
+  state.rounds.forEach(r => {
+    if (r.participantIds.includes(id)) delete r.bearerId;
+    r.participantIds = r.participantIds.filter(p => p !== id);
+  });
+  resetAdjustments();
+  changed('メンバーを削除し、全回の微調整をリセットしました。', true, { state:before, label:`「${name}」を削除しました。` });
+});
+$('add-member').addEventListener('click', () => {
+  const m = { id:uid('m'), name:'', rank:3 };
+  state.members.push(m); state.rounds.forEach(r => { r.participantIds.push(m.id); delete r.bearerId; });
+  resetAdjustments(); changed('メンバーを全回の参加者に追加しました。微調整はリセットしました。');
+  $('members').lastElementChild.querySelector('input').focus();
+});
+$('rounds').addEventListener('input', event => {
+  const field = event.target.dataset.field;
+  if (field !== 'amount' && field !== 'round-name') return;
+  const r = state.rounds.find(r => r.id === event.target.closest('[data-round]').dataset.round);
+  if (field === 'round-name') {
+    // 入力中の欄を作り直さないよう、見出しと結果だけ更新する。
+    r.name = event.target.value;
+    $('title-' + r.id).textContent = roundName(r);
+    event.target.closest('[data-round]').querySelector('[data-action="remove-round"]').setAttribute('aria-label', roundName(r) + 'を削除');
+    clearUndo(); refreshCalculated(); save();
+    return;
+  }
+  const hadAdjustments = hasAdjustments(r);
+  r.amount = event.target.value; resetAdjustments([r]);
+  changed(hadAdjustments ? '請求額を変更し、この回の微調整をリセットしました。' : '', false);
+});
+$('rounds').addEventListener('change', event => {
+  const field = event.target.dataset.field;
+  const r = state.rounds.find(r => r.id === event.target.closest('[data-round]').dataset.round);
+  if (field === 'strength') r.strength = event.target.value;
+  else if (field === 'bearer') r.bearerId = event.target.value;
+  else if (field === 'participant') {
+    r.participantIds = event.target.checked ? [...r.participantIds, event.target.value] : r.participantIds.filter(id => id !== event.target.value);
+    delete r.bearerId;
+  } else return;
+  resetAdjustments([r]); changed('設定を変更し、この回の微調整をリセットしました。');
+});
+$('rounds').addEventListener('click', event => {
+  const action = event.target.dataset.action;
+  if (!action) return;
+  const r = state.rounds.find(r => r.id === event.target.closest('[data-round]').dataset.round);
+  if (action === 'remove-round') {
+    const before = snapshot(), name = roundName(r);
+    state.rounds = state.rounds.filter(other => other !== r);
+    changed('回を削除しました。', true, { state:before, label:`「${name}」を削除しました。` });
+  } else if (action === 'clear-adjustments') {
+    resetAdjustments([r]); changed('この回の微調整を解除しました。', false);
+  } else if (action === 'adjust') {
+    const rank = Number(event.target.dataset.rank), delta = Number(event.target.dataset.delta);
+    if (!C.canAdjustRound(state.members, state.organizerId, numericRound(r), rank, delta)) return;
+    r.adjustments[rank] = (r.adjustments[rank] || 0) + delta;
+    changed('微調整を反映しました。差額は自動で差額担当者に回ります。', false);
+    const next = document.querySelector(`[data-round="${r.id}"] [data-rank="${rank}"][data-delta="${delta}"]`);
+    if (next && !next.disabled) next.focus({ preventScroll:true });
+  }
+});
+$('add-round').addEventListener('click', () => {
+  state.rounds.push({ id:uid('r'), name:nextRoundName(), amount:'', participantIds:state.members.map(m => m.id), strength:$('bulk-strength').value, adjustments:{} });
+  changed('全員が参加する回を追加しました。');
+  $('rounds').lastElementChild.querySelector('[data-field="amount"]').focus();
+});
+$('apply-strength').addEventListener('click', () => {
+  state.rounds.forEach(r => { r.strength = $('bulk-strength').value; });
+  resetAdjustments(); changed('全回の傾斜をそろえ、微調整をリセットしました。');
+});
+$('undo').addEventListener('click', () => {
+  if (!undoState) return;
+  state = undoState.state;
+  changed('削除を取り消しました。');
+});
+$('load-example').addEventListener('click', () => {
+  if (exampleUndo) {
+    state = exampleUndo; exampleUndo = null; $('load-example').textContent = '例を読み込む'; changed('例の読み込み前の入力に戻しました。');
+  } else {
+    exampleUndo = snapshot(); state = C.createExample();
+    $('load-example').textContent = '例を読み込む前に戻す'; changed('例1を表示中です。例の表示中は保存しないので、ページを閉じても元の入力は残ります。');
+  }
+});
+// 別のタブで保存された内容を取り込み、古い画面で上書きしないようにする。
+window.addEventListener('storage', event => {
+  if (event.key !== STORAGE_KEY || event.newValue === null) return;
+  let loaded;
+  try { loaded = parseState(event.newValue); } catch (_) { return; }
+  if (exampleUndo) { exampleUndo = loaded; $('status').textContent = '別のタブで入力が変更されました。例から戻すと反映されます。'; return; }
+  state = loaded; undoState = null; renderUndo();
+  revision++; $('copy-fallback').hidden = true; $('copy-text').value = ''; $('copy-status').textContent = '';
+  renderAll();
+  $('status').textContent = '別のタブでの変更を読み込みました。';
+});
+function lineText() {
+  const names = state.members.map(memberName);
+  const roundNames = state.rounds.map(roundName);
+  const lines = ['【飲み会の精算】', ''];
+  state.members.forEach((m, i) => {
+    lines.push(`${names[i]}${m.id === state.organizerId ? '（幹事）' : ''}：合計 ${yen(settlement.totals[m.id])}`);
+    lines.push('  ' + settlement.rounds.map((r, n) => `${roundNames[n]} ${Object.hasOwn(r.amounts, m.id) ? yen(r.amounts[m.id]) : '不参加'}`).join(' / '));
+  });
+  lines.push('', ...settlement.rounds.map((r, i) => `${roundNames[i]}：請求額 ${yen(r.total)}（一致）／差額担当 ${memberName(state.members.find(m => m.id === r.bearerId))}`));
+  lines.push(`全回合計：${yen(settlement.grandTotal)}`);
+  return lines.join('\n');
+}
+$('copy').addEventListener('click', async () => {
+  if (!settlement) return;
+  const text = lineText(), copiedRevision = revision;
+  try {
+    await navigator.clipboard.writeText(text);
+    if (copiedRevision === revision) { $('copy-status').textContent = 'コピーしました。LINEに貼り付けて使えます。'; $('copy-fallback').hidden = true; }
+  } catch (_) {
+    if (copiedRevision !== revision) return;
+    $('copy-status').textContent = '自動コピーが使えないため、文面を表示しました。';
+    $('copy-fallback').hidden = false; $('copy-text').value = text;
+    $('copy-text').focus(); $('copy-text').select();
+  }
+});
+$('select-text').addEventListener('click', () => { $('copy-text').focus(); $('copy-text').select(); });
+renderAll();
+$('status').textContent = storageNotice;
+</script>
+</body>
+</html>
