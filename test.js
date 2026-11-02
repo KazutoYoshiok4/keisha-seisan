@@ -167,4 +167,29 @@ test('ランク1〜7・全強度・参加パターンで請求額一致と下限
     }
   }
 });
+test('抽選：合計は変わらず、1人ずつ0.5〜1.5倍の範囲・100円単位', () => {
+  // 再現できる疑似乱数（xorshift）
+  let seed = 12345;
+  const random = () => { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return (seed >>> 0) / 2 ** 32; };
+  const extremes = [() => 0, () => 0.999999];
+  const cases = [result.totals, { a: 1000, b: 1000 }, { a: 35038, b: 100, c: 0 }, { a: 999999999, b: 5000, c: 123 }];
+  for (const totals of cases) {
+    const payers = Object.entries(totals).filter(([, v]) => v > 0);
+    const total = payers.reduce((sum, [, v]) => sum + v, 0);
+    for (let i = 0; i < 300; i++) {
+      const drawn = calc.drawLottery(totals, 'E', i < 2 ? extremes[i] : random);
+      assert.equal(Object.keys(drawn).join(), payers.map(([id]) => id).join());
+      assert.equal(Object.values(drawn).reduce((a, b) => a + b, 0), total);
+      const keeper = Object.hasOwn(drawn, 'E') ? 'E' : payers.reduce((a, b) => b[1] > a[1] ? b : a)[0];
+      payers.forEach(([id, base]) => {
+        assert.ok(drawn[id] >= 0);
+        if (id !== keeper) assert.equal(drawn[id] % 100, 0);
+        // 100円単位にそろえる分と端数の分だけ、範囲から少しはみ出すことがある。
+        const slack = 100 * payers.length;
+        assert.ok(drawn[id] >= base * 0.5 - slack && drawn[id] <= base * 1.5 + slack, `${id}: ${drawn[id]} / ${base}`);
+      });
+    }
+  }
+  assert.throws(() => calc.drawLottery({ a: 1000, b: 0 }, 'a', Math.random), /2人以上/);
+});
 console.log(`\n${passed}件のテストがすべて成功しました。`);

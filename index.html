@@ -81,6 +81,16 @@
     .adjust { border-top:1px solid var(--line); margin-top:10px; }
     .adjust summary { cursor:pointer; color:var(--accent); font-weight:600; padding:12px 0; min-height:46px; }
     .summary-note { display:block; color:var(--muted); font-size:13px; font-weight:400; margin-left:1.1em; }
+    h1 { touch-action:manipulation; -webkit-user-select:none; user-select:none; }
+    .lottery { background:white; border:1px solid var(--accent); border-radius:4px; padding:16px; margin:20px 0; }
+    .lottery h3 { color:var(--accent); }
+    .lottery-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .lottery-actions button { flex:1; min-width:140px; }
+    .lottery .table-wrap { margin:8px 0; }
+    .lottery th:first-child { background:white; }
+    .lottery .up { color:var(--red); }
+    .lottery .down { color:var(--accent); }
+    .lottery.spinning tbody td:nth-child(3) { color:var(--muted); }
     .preview summary { cursor:pointer; color:var(--accent); font-weight:600; padding:6px 0; }
     .preview pre { white-space:pre-wrap; overflow-wrap:anywhere; font-family:inherit; font-size:14px; background:white; border:1px solid var(--line); border-radius:4px; padding:12px; margin:6px 0 0; }
     #status { min-height:24px; margin:12px 0 0; }
@@ -124,6 +134,12 @@
   <section class="panel" aria-labelledby="results-title">
     <div class="heading"><h2 id="results-title">3. 精算結果</h2><a href="#rounds-title">入力に戻る ↑</a></div>
     <div id="results"></div>
+    <section id="lottery" class="lottery" aria-labelledby="lottery-title" hidden>
+      <h3 id="lottery-title">抽選モード</h3>
+      <p class="help">1人ずつ、いつもの金額の0.5〜1.5倍の範囲でランダムに決めます。合計は請求額と同じです。抽選するとLINEの文面も抽選の金額になります。</p>
+      <div id="lottery-result" aria-live="polite"></div>
+      <div class="lottery-actions"><button type="button" class="primary" id="draw">抽選する</button><button type="button" id="lottery-off">抽選をやめる</button></div>
+    </section>
     <fieldset id="message-settings" class="message-settings"><legend>LINEの文面</legend>
       <label class="field">はじめのあいさつ<textarea data-message="greeting" rows="2" maxlength="200"></textarea></label>
       <label class="field">お支払い方法（空欄なら載せません）<input data-message="payment" maxlength="100" placeholder="例：PayPay（ID：xxxx）または現金" autocomplete="off"></label>
@@ -245,6 +261,32 @@
     check(Number.isSafeInteger(grandTotal), '合計金額が大きすぎます。');
     return { rounds: results, totals, grandTotal };
   }
+  // 隠し機能の抽選。totals は {id: いつもの金額}。合計は変えずに、1人ずつ0.5〜1.5倍の範囲で決め直す。
+  // 100円単位にそろえ、100円に満たない端数だけ幹事（いなければ一番多く払う人）が持つ。random は [0,1) を返す関数。
+  const LOTTERY_RANGE = Object.freeze([0.5, 1.5]);
+  function drawLottery(totals, organizerId, random) {
+    const [low, high] = LOTTERY_RANGE;
+    const payers = Object.entries(totals).filter(([, value]) => value > 0).map(([id, base]) => ({ id, base }));
+    check(payers.length >= 2, '抽選には、支払う人が2人以上必要です。');
+    const total = payers.reduce((sum, p) => sum + p.base, 0);
+    payers.forEach(p => { p.value = p.base * (low + (high - low) * random()); });
+    // 合計とのずれを、上限（または下限）までの余裕に比例して配る。余裕の合計は必ずずれ以上あるので範囲内に収まる。
+    const gap = total - payers.reduce((sum, p) => sum + p.value, 0);
+    const room = p => gap > 0 ? p.base * high - p.value : p.value - p.base * low;
+    const roomTotal = payers.reduce((sum, p) => sum + room(p), 0);
+    if (roomTotal > 0) payers.forEach(p => { p.value += gap * room(p) / roomTotal; });
+    payers.forEach(p => { p.amount = Math.floor(p.value / 100) * 100; });
+    let remainder = total - payers.reduce((sum, p) => sum + p.amount, 0);
+    while (remainder >= 100) {
+      const fits = payers.filter(p => p.amount + 100 <= p.base * high);
+      const pool = fits.length ? fits : payers;
+      pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))].amount += 100;
+      remainder -= 100;
+    }
+    const keeper = payers.find(p => p.id === organizerId) || payers.reduce((a, b) => b.base > a.base ? b : a);
+    keeper.amount += remainder;
+    return Object.fromEntries(payers.map(p => [p.id, p.amount]));
+  }
   function defaultName(index) {
     let result = '';
     for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)) result = String.fromCharCode(65 + (n - 1) % 26) + result;
@@ -261,7 +303,7 @@
       ]
     };
   }
-  return Object.freeze({ STRENGTHS, MAX_AMOUNT, MAX_RANK, getWeight, calculateRound, canAdjustRound, calculateSettlement, defaultName, createExample });
+  return Object.freeze({ STRENGTHS, MAX_AMOUNT, MAX_RANK, LOTTERY_RANGE, getWeight, calculateRound, canAdjustRound, calculateSettlement, drawLottery, defaultName, createExample });
 });
 </script>
 <script>
@@ -316,7 +358,14 @@ function parseState(raw) {
       message[key] = value;
     }
   }
-  return { version:1, members, organizerId:saved.organizerId, defaultStrength:saved.defaultStrength ?? 'medium', message, rounds };
+  let lottery;
+  if (saved.lottery !== undefined) {
+    const l = saved.lottery;
+    const validMap = map => isPlainObject(map) && Object.entries(map).every(([id, value]) => ids.has(id) && Number.isSafeInteger(value) && value >= 0);
+    if (!isPlainObject(l) || !validMap(l.basis) || !validMap(l.amounts) || !Number.isSafeInteger(l.count) || l.count < 1 || Object.keys(l.basis).sort().join() !== Object.keys(l.amounts).sort().join()) throw Error();
+    lottery = { basis:{ ...l.basis }, amounts:{ ...l.amounts }, count:l.count };
+  }
+  return { version:1, members, organizerId:saved.organizerId, defaultStrength:saved.defaultStrength ?? 'medium', message, rounds, lottery };
 }
 // 計算できなくなる保存済みの微調整は、その回だけ解除する。
 function dropInvalidAdjustments(target) {
@@ -359,6 +408,10 @@ let revision = 0;
 let exampleUndo = null;
 // 削除の直前の状態。次の変更をすると消える。
 let undoState = null;
+// 抽選モードを開いているか（保存しない。抽選結果があるときは常に開く）。
+let lotteryOpen = false;
+let lotteryNotice = '';
+let spinning = null;
 function memberName(member) { return member.name.trim() || C.defaultName(state.members.indexOf(member)); }
 function roundName(round) { return round.name.trim() || `${state.rounds.indexOf(round) + 1}回目`; }
 function nextRoundName() {
@@ -491,10 +544,12 @@ function refreshCalculated() {
       <tbody>${state.members.map(m => `<tr><th scope="row" title="${escapeHtml(memberName(m))}">${escapeHtml(memberName(m))}${m.id === state.organizerId ? '（幹事）' : ''}</th>${settlement.rounds.map(r => `<td>${Object.hasOwn(r.amounts, m.id) ? yen(r.amounts[m.id]) : '—'}</td>`).join('')}<td>${yen(settlement.totals[m.id])}</td></tr>`).join('')}</tbody>
       <tfoot><tr><th scope="row">請求額</th>${settlement.rounds.map(r => `<td>${yen(r.total)}</td>`).join('')}<td>${yen(settlement.grandTotal)}</td></tr></tfoot></table></div>
       ${settlement.rounds.map((r, i) => `<div class="success">✓ ${escapeHtml(roundName(state.rounds[i]))}：${yen(r.total)} ／ 請求額と一致</div>`).join('')}`;
+    syncLottery();
     $('copy').disabled = false;
     $('line-preview').textContent = lineText();
   } catch (_) {
     settlement = null;
+    syncLottery();
     $('copy').disabled = true;
     $('line-preview').textContent = '精算結果が出ると、ここに文面が表示されます。';
     $('results').innerHTML = state.rounds.length
@@ -502,6 +557,88 @@ function refreshCalculated() {
       : '<p class="help">回を追加すると、全員の精算結果がここに表示されます。</p>';
   }
 }
+const lotteryPayers = () => Object.fromEntries(Object.entries(settlement ? settlement.totals : {}).filter(([, value]) => value > 0));
+const sameMap = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
+function activeLottery() { return state.lottery && settlement && sameMap(state.lottery.basis, lotteryPayers()) ? state.lottery : null; }
+function syncLottery() {
+  if (state.lottery && !activeLottery()) {
+    delete state.lottery;
+    lotteryNotice = '入力が変わったため、抽選結果を取り消しました。もう一度抽選できます。';
+  }
+  renderLottery();
+}
+function lotteryTable(amounts) {
+  const basis = lotteryPayers();
+  return `<div class="table-wrap" tabindex="0" role="region" aria-label="抽選の結果"><table><caption class="sr-only">抽選の結果</caption>
+    <thead><tr><th scope="col">名前</th><th scope="col">いつも</th><th scope="col">抽選</th><th scope="col">差</th></tr></thead>
+    <tbody>${state.members.filter(m => Object.hasOwn(basis, m.id)).map(m => {
+      const diff = amounts[m.id] - basis[m.id];
+      return `<tr><th scope="row">${escapeHtml(memberName(m))}${m.id === state.organizerId ? '（幹事）' : ''}</th><td>${yen(basis[m.id])}</td><td>${yen(amounts[m.id])}</td><td class="${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${signedYen(diff)}</td></tr>`;
+    }).join('')}</tbody>
+    <tfoot><tr><th scope="row">合計</th><td>${yen(settlement.grandTotal)}</td><td>${yen(Object.values(amounts).reduce((a, b) => a + b, 0))}</td><td></td></tr></tfoot></table></div>`;
+}
+function renderLottery() {
+  if (spinning) return;
+  const lottery = activeLottery();
+  $('lottery').hidden = !(lotteryOpen || lottery);
+  $('lottery').classList.remove('spinning');
+  const canDraw = settlement && Object.keys(lotteryPayers()).length >= 2;
+  $('draw').disabled = !canDraw;
+  $('draw').textContent = lottery ? 'もう一度抽選する' : '抽選する';
+  $('lottery-off').textContent = lottery ? '抽選をやめる' : '閉じる';
+  const notice = lotteryNotice ? `<p class="help">${escapeHtml(lotteryNotice)}</p>` : '';
+  if (lottery) $('lottery-result').innerHTML = `<p class="success">抽選${lottery.count}回目の結果 ／ 合計は請求額と一致</p>${lotteryTable(lottery.amounts)}`;
+  else if (!settlement) $('lottery-result').innerHTML = notice + '<p class="help">精算結果が出ると抽選できます。</p>';
+  else if (!canDraw) $('lottery-result').innerHTML = notice + '<p class="help">支払う人が2人以上いると抽選できます。</p>';
+  else $('lottery-result').innerHTML = notice;
+}
+const secureRandom = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+// 隠し機能の入口：タイトルを3秒以内に5回タップする。
+const titleTaps = [];
+document.querySelector('h1').addEventListener('click', () => {
+  const now = Date.now();
+  titleTaps.push(now);
+  while (titleTaps.length && now - titleTaps[0] > 3000) titleTaps.shift();
+  if (titleTaps.length < 5 || lotteryOpen) return;
+  titleTaps.length = 0;
+  lotteryOpen = true; renderLottery();
+  $('status').textContent = '隠し機能「抽選モード」が開きました。精算結果の下にあります。';
+  $('lottery').scrollIntoView({ behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'center' });
+});
+$('draw').addEventListener('click', () => {
+  if (!settlement || spinning) return;
+  const basis = lotteryPayers();
+  let amounts;
+  try { amounts = C.drawLottery(basis, state.organizerId, secureRandom); } catch (error) { $('status').textContent = error.message; return; }
+  const count = (activeLottery() ? state.lottery.count : 0) + 1;
+  clearUndo(); lotteryNotice = '';
+  const finish = () => {
+    spinning = null;
+    state.lottery = { basis, amounts, count };
+    save(); renderLottery();
+    if (settlement) $('line-preview').textContent = lineText();
+    $('status').textContent = `抽選${count}回目の結果が出ました。`;
+    $('draw').focus({ preventScroll:true });
+  };
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { finish(); return; }
+  // 結果が出るまで、ルーレットのように数字を回す。
+  $('draw').disabled = true; $('lottery-off').disabled = true;
+  $('lottery').classList.add('spinning');
+  const started = Date.now();
+  spinning = setInterval(() => {
+    const preview = C.drawLottery(basis, state.organizerId, Math.random);
+    $('lottery-result').innerHTML = `<p class="help">抽選中…</p>${lotteryTable(preview)}`;
+    if (Date.now() - started > 1200) { clearInterval(spinning); $('lottery-off').disabled = false; finish(); }
+  }, 70);
+});
+$('lottery-off').addEventListener('click', () => {
+  if (spinning) return;
+  const had = Boolean(state.lottery);
+  delete state.lottery; lotteryOpen = false; lotteryNotice = '';
+  clearUndo(); save(); renderLottery();
+  if (settlement) $('line-preview').textContent = lineText();
+  $('status').textContent = had ? '抽選をやめて、いつもの金額に戻しました。' : '抽選モードを閉じました。';
+});
 function renderUndo() {
   $('undo-bar').hidden = !undoState;
   $('undo-message').textContent = undoState ? undoState.label : '';
@@ -652,7 +789,15 @@ function lineText() {
   const roundNames = state.rounds.map(roundName);
   const lines = [];
   if (greeting.trim()) lines.push(greeting.trim(), '');
-  state.members.forEach(m => {
+  const lottery = activeLottery();
+  if (lottery) {
+    lines.push('今回のお会計は、抽選で決めました。');
+    state.members.forEach(m => {
+      if (!Object.hasOwn(lottery.amounts, m.id)) return;
+      const who = m.id === state.organizerId ? `${memberName(m)}（幹事）` : `${memberName(m)}さん`;
+      lines.push(`${who}　${yen(lottery.amounts[m.id])}（いつもは${yen(lottery.basis[m.id])}）`);
+    });
+  } else state.members.forEach(m => {
     const attended = settlement.rounds.map((r, n) => Object.hasOwn(r.amounts, m.id) ? `${roundNames[n]} ${yen(r.amounts[m.id])}` : null).filter(Boolean);
     if (!attended.length) return;
     const who = m.id === state.organizerId ? `${memberName(m)}（幹事）` : `${memberName(m)}さん`;
