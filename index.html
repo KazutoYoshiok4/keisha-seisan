@@ -75,6 +75,8 @@
     .message-settings { display:grid; gap:12px; margin:20px 0 14px; }
     .message-settings legend { font-size:16px; }
     .message-settings textarea { margin-top:5px; resize:vertical; }
+    .adjust { border-top:1px solid var(--line); margin-top:10px; }
+    .adjust summary { cursor:pointer; color:var(--green); font-weight:700; padding:12px 0; min-height:46px; }
     .preview summary { cursor:pointer; color:var(--green); font-weight:700; padding:6px 0; }
     .preview pre { white-space:pre-wrap; overflow-wrap:anywhere; font-family:inherit; font-size:14px; background:var(--pale); border-radius:10px; padding:12px; margin:6px 0 0; }
     #status { min-height:24px; margin:0 0 12px; }
@@ -433,7 +435,14 @@ function adjustmentSummary(r, bearer) {
   const shift = -parts.reduce((sum, p) => sum + p.adj * p.count, 0);
   return `<p class="adjust-summary">微調整の帳尻：${parts.map(p => `ランク${p.rank} ${signedYen(p.adj)}×${p.count}人＝${signedYen(p.adj * p.count)}`).join('、')}<br>→ その分、${escapeHtml(memberName(bearer))}（差額担当）の支払いが <strong>${signedYen(shift)}</strong>。この回の合計は請求額のままです。</p>`;
 }
-const hasAdjustments = round => Object.values(round.adjustments).some(value => value !== 0);
+// 「ランクごとの金額・微調整」を開いている回。描き直しても開いたままにする（保存はしない）。
+const openAdjustments = new Set();
+$('rounds').addEventListener('toggle', event => {
+  const id = event.target.dataset && event.target.dataset.adjustFor;
+  if (!id) return;
+  if (event.target.open) openAdjustments.add(id); else openAdjustments.delete(id);
+}, true);
+const hasAdjustments = round =>Object.values(round.adjustments).some(value => value !== 0);
 const clearAdjustmentsButton = round => hasAdjustments(round) ? `<button type="button" data-action="clear-adjustments">この回の微調整を解除</button>` : '';
 function refreshCalculated() {
   state.rounds.forEach(r => {
@@ -456,12 +465,13 @@ function refreshCalculated() {
       target.innerHTML = `<p class="success">✓ ${yen(result.total)} ／ 請求額と一致</p>
         <p class="help">差額担当：${escapeHtml(memberName(bearer))}　支払 ${yen(bearerPays)}（ランク${bearer.rank}の金額 ${yen(bearerBase)} ＋ 差額 ${yen(bearerPays - bearerBase)}）</p>
         ${adjustmentSummary(r, bearer)}
+        <details class="adjust" data-adjust-for="${r.id}" ${openAdjustments.has(r.id) ? 'open' : ''}><summary>ランクごとの金額・微調整${hasAdjustments(r) ? '（調整中）' : ''}</summary>
         <div aria-label="ランク別の微調整">${ranks.map(rank => {
           const adjustment = r.adjustments[rank] || 0;
           return `<div class="adjust-row"><div><strong>ランク${rank}</strong><span class="adjust-value">${yen(result.rankAmounts[rank])} / 人<br>調整 ${adjustment > 0 ? '+' : ''}${yen(adjustment)}</span></div>
             <button type="button" data-action="adjust" data-rank="${rank}" data-delta="-100" aria-label="${label}のランク${rank}を100円減らす" ${C.canAdjustRound(state.members, state.organizerId, numeric, rank, -100) ? '' : 'disabled'}>−100円</button>
             <button type="button" data-action="adjust" data-rank="${rank}" data-delta="100" aria-label="${label}のランク${rank}を100円増やす" ${C.canAdjustRound(state.members, state.organizerId, numeric, rank, 100) ? '' : 'disabled'}>＋100円</button></div>`;
-        }).join('')}</div>${clearAdjustmentsButton(r)}<p class="help">差額担当者は同ランクの調整後の金額以上を負担します。0円未満になる操作もできません。</p>`;
+        }).join('')}</div>${clearAdjustmentsButton(r)}<p class="help">差額担当者は同ランクの調整後の金額以上を負担します。0円未満になる操作もできません。</p></details>`;
     } catch (error) {
       target.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>${clearAdjustmentsButton(r)}`;
     }
