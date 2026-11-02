@@ -20,7 +20,7 @@
     .muted, .help { color:var(--muted); font-size:14px; }
     header { padding:4px 0 8px; }
     .panel { border-top:2px solid var(--ink); padding:18px 0 4px; margin-top:32px; }
-    header + #status + .panel { margin-top:16px; }
+    #status + .panel { margin-top:16px; }
     .heading, .row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
     .heading { margin-bottom:12px; flex-wrap:wrap; }
     a { color:var(--accent); }
@@ -81,16 +81,21 @@
     .adjust { border-top:1px solid var(--line); margin-top:10px; }
     .adjust summary { cursor:pointer; color:var(--accent); font-weight:600; padding:12px 0; min-height:46px; }
     .summary-note { display:block; color:var(--muted); font-size:13px; font-weight:400; margin-left:1.1em; }
-    h1 { touch-action:manipulation; -webkit-user-select:none; user-select:none; }
-    .lottery { background:white; border:1px solid var(--accent); border-radius:4px; padding:16px; margin:20px 0; }
-    .lottery h3 { color:var(--accent); }
-    .lottery-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .tabs { display:flex; border:1px solid var(--accent); border-radius:4px; overflow:hidden; margin-top:4px; }
+    .tabs button { flex:1; border:0; border-radius:0; background:white; color:var(--accent); }
+    .tabs button + button { border-left:1px solid var(--accent); }
+    .tabs button[aria-pressed=true], .tabs button[aria-pressed=true]:hover { background:var(--accent); color:white; }
+    .mode-note { background:var(--tint); border-left:3px solid var(--accent); padding:8px 12px; margin:10px 0 0; }
+    .lottery-card { background:white; border:1px solid var(--line); border-radius:4px; padding:14px; margin:12px 0; }
+    .lottery-card.summary { border-color:var(--accent); }
+    .lottery-card h3 { margin-bottom:4px; }
+    .lottery-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
     .lottery-actions button { flex:1; min-width:140px; }
-    .lottery .table-wrap { margin:8px 0; }
-    .lottery th:first-child { background:white; }
-    .lottery .up { color:var(--red); }
-    .lottery .down { color:var(--accent); }
-    .lottery.spinning tbody td:nth-child(3) { color:var(--muted); }
+    .lottery-card .table-wrap { margin:8px 0; }
+    .lottery-card th:first-child { background:white; }
+    .lottery-card .up { color:var(--red); }
+    .lottery-card .down { color:var(--accent); }
+    .lottery-card.spinning tbody td:nth-child(3) { color:var(--muted); }
     .preview summary { cursor:pointer; color:var(--accent); font-weight:600; padding:6px 0; }
     .preview pre { white-space:pre-wrap; overflow-wrap:anywhere; font-family:inherit; font-size:14px; background:white; border:1px solid var(--line); border-radius:4px; padding:12px; margin:6px 0 0; }
     #status { min-height:24px; margin:12px 0 0; }
@@ -109,6 +114,11 @@
     <button type="button" id="load-example">例を読み込む</button>
     <p class="help">入力はこのブラウザに自動保存。端末の外には送信しません。例の表示中は保存しません。</p>
   </header>
+  <div class="tabs" role="group" aria-label="モードの切り替え">
+    <button type="button" data-mode="normal" aria-pressed="true">通常モード</button>
+    <button type="button" data-mode="lottery" aria-pressed="false">抽選モード</button>
+  </div>
+  <p id="mode-note" class="help mode-note" hidden>抽選モードです。メンバーと回の入力は通常モードと共通で、いちばん下の「3. 抽選」で金額を決めます。</p>
   <p id="status" class="help" role="status" aria-live="polite"></p>
   <section class="panel" aria-labelledby="members-title">
     <div class="heading"><h2 id="members-title">1. メンバー</h2></div>
@@ -134,12 +144,14 @@
   <section class="panel" aria-labelledby="results-title">
     <div class="heading"><h2 id="results-title">3. 精算結果</h2><a href="#rounds-title">入力に戻る ↑</a></div>
     <div id="results"></div>
-    <section id="lottery" class="lottery" aria-labelledby="lottery-title" hidden>
-      <h3 id="lottery-title">抽選モード</h3>
-      <p class="help">1人ずつ、いつもの金額の0.5〜1.5倍の範囲でランダムに決めます。合計は請求額と同じです。抽選するとLINEの文面も抽選の金額になります。</p>
-      <div id="lottery-result" aria-live="polite"></div>
-      <div class="lottery-actions"><button type="button" class="primary" id="draw">抽選する</button><button type="button" id="lottery-off">抽選をやめる</button></div>
-    </section>
+    <div id="lottery-view" hidden>
+      <p class="help">1人ずつ、いつもの金額の0.5〜1.5倍の範囲でランダムに決めます。合計は請求額と同じです。LINEの文面も抽選の金額になります。</p>
+      <fieldset><legend>抽選のしかた</legend><div class="bearer-choice">
+        <label class="chip"><input type="radio" name="lottery-scope" value="total">全部の回をまとめて</label>
+        <label class="chip"><input type="radio" name="lottery-scope" value="round">回ごと</label>
+      </div></fieldset>
+      <div id="lottery-body"></div>
+    </div>
     <fieldset id="message-settings" class="message-settings"><legend>LINEの文面</legend>
       <label class="field">はじめのあいさつ<textarea data-message="greeting" rows="2" maxlength="200"></textarea></label>
       <label class="field">お支払い方法（空欄なら載せません）<input data-message="payment" maxlength="100" placeholder="例：PayPay（ID：xxxx）または現金" autocomplete="off"></label>
@@ -319,9 +331,11 @@ const uid = prefix => prefix + Date.now().toString(36) + Math.random().toString(
 // LINEの文面に入れる、幹事からのあいさつ・支払い案内。
 const MESSAGE_LIMITS = { greeting:200, payment:100, deadline:50, closing:200 };
 const defaultMessage = () => ({ greeting:'本日はお疲れさまでした。\n精算のご連絡です。', payment:'', deadline:'', closing:'お手数をおかけしますが、よろしくお願いいたします。' });
+// 抽選の結果。scope は「まとめて（total）」か「回ごと（round）」。1つの結果は { basis:いつもの金額, amounts:抽選後, count:何回目 }。
+const emptyLottery = () => ({ scope:'total', total:null, rounds:{} });
 function initialState() {
   const members = [1, 2, 3].map(rank => ({ id:uid('m'), name:'', rank }));
-  return { version:1, members, organizerId:members[2].id, defaultStrength:'medium', message:defaultMessage(), rounds:[{ id:uid('r'), name:'1次会', amount:'', participantIds:members.map(m => m.id), strength:'medium', adjustments:{} }] };
+  return { version:1, members, organizerId:members[2].id, defaultStrength:'medium', message:defaultMessage(), mode:'normal', lottery:emptyLottery(), rounds:[{ id:uid('r'), name:'1次会', amount:'', participantIds:members.map(m => m.id), strength:'medium', adjustments:{} }] };
 }
 const isPlainObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 // 保存データを検証して状態に変換する。不正なら例外。
@@ -358,14 +372,26 @@ function parseState(raw) {
       message[key] = value;
     }
   }
-  let lottery;
+  const lottery = emptyLottery();
   if (saved.lottery !== undefined) {
     const l = saved.lottery;
     const validMap = map => isPlainObject(map) && Object.entries(map).every(([id, value]) => ids.has(id) && Number.isSafeInteger(value) && value >= 0);
-    if (!isPlainObject(l) || !validMap(l.basis) || !validMap(l.amounts) || !Number.isSafeInteger(l.count) || l.count < 1 || Object.keys(l.basis).sort().join() !== Object.keys(l.amounts).sort().join()) throw Error();
-    lottery = { basis:{ ...l.basis }, amounts:{ ...l.amounts }, count:l.count };
+    const entry = e => {
+      if (!isPlainObject(e) || !validMap(e.basis) || !validMap(e.amounts) || !Number.isSafeInteger(e.count) || e.count < 1 || Object.keys(e.basis).sort().join() !== Object.keys(e.amounts).sort().join()) throw Error();
+      return { basis:{ ...e.basis }, amounts:{ ...e.amounts }, count:e.count };
+    };
+    if (!isPlainObject(l)) throw Error();
+    if (l.basis !== undefined) lottery.total = entry(l); // まとめて抽選しかなかった頃の形式
+    else {
+      if (!['total', 'round'].includes(l.scope) || (l.rounds !== undefined && !isPlainObject(l.rounds))) throw Error();
+      lottery.scope = l.scope;
+      if (l.total !== undefined && l.total !== null) lottery.total = entry(l.total);
+      for (const [id, e] of Object.entries(l.rounds || {})) { const parsed = entry(e); if (rounds.some(r => r.id === id)) lottery.rounds[id] = parsed; }
+    }
   }
-  return { version:1, members, organizerId:saved.organizerId, defaultStrength:saved.defaultStrength ?? 'medium', message, rounds, lottery };
+  if (saved.mode !== undefined && !['normal', 'lottery'].includes(saved.mode)) throw Error();
+  const mode = saved.mode ?? (lottery.total ? 'lottery' : 'normal');
+  return { version:1, members, organizerId:saved.organizerId, defaultStrength:saved.defaultStrength ?? 'medium', message, mode, lottery, rounds };
 }
 // 計算できなくなる保存済みの微調整は、その回だけ解除する。
 function dropInvalidAdjustments(target) {
@@ -408,8 +434,6 @@ let revision = 0;
 let exampleUndo = null;
 // 削除の直前の状態。次の変更をすると消える。
 let undoState = null;
-// 抽選モードを開いているか（保存しない。抽選結果があるときは常に開く）。
-let lotteryOpen = false;
 let lotteryNotice = '';
 let spinning = null;
 function memberName(member) { return member.name.trim() || C.defaultName(state.members.indexOf(member)); }
@@ -545,100 +569,160 @@ function refreshCalculated() {
       <tfoot><tr><th scope="row">請求額</th>${settlement.rounds.map(r => `<td>${yen(r.total)}</td>`).join('')}<td>${yen(settlement.grandTotal)}</td></tr></tfoot></table></div>
       ${settlement.rounds.map((r, i) => `<div class="success">✓ ${escapeHtml(roundName(state.rounds[i]))}：${yen(r.total)} ／ 請求額と一致</div>`).join('')}`;
     syncLottery();
-    $('copy').disabled = false;
-    $('line-preview').textContent = lineText();
+    renderLine();
   } catch (_) {
     settlement = null;
     syncLottery();
-    $('copy').disabled = true;
-    $('line-preview').textContent = '精算結果が出ると、ここに文面が表示されます。';
+    renderLine();
     $('results').innerHTML = state.rounds.length
       ? '<p class="help">各回の請求額と参加者を確認すると、全員の精算結果がここに表示されます。</p>'
       : '<p class="help">回を追加すると、全員の精算結果がここに表示されます。</p>';
   }
 }
-const lotteryPayers = () => Object.fromEntries(Object.entries(settlement ? settlement.totals : {}).filter(([, value]) => value > 0));
+const payersOf = amounts => Object.fromEntries(Object.entries(amounts).filter(([, value]) => value > 0));
 const sameMap = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
-function activeLottery() { return state.lottery && settlement && sameMap(state.lottery.basis, lotteryPayers()) ? state.lottery : null; }
+function roundResult(r) {
+  if (isBlankAmount(r)) return null;
+  try { return C.calculateRound(state.members, state.organizerId, numericRound(r)); } catch (_) { return null; }
+}
+// 入力が変わって、いつもの金額が抽選したときとずれた結果は取り消す。入力途中で計算できないだけなら残す。
 function syncLottery() {
-  if (state.lottery && !activeLottery()) {
-    delete state.lottery;
-    lotteryNotice = '入力が変わったため、抽選結果を取り消しました。もう一度抽選できます。';
+  const l = state.lottery;
+  let dropped = false;
+  if (l.total && settlement && !sameMap(l.total.basis, payersOf(settlement.totals))) { l.total = null; dropped = true; }
+  for (const id of Object.keys(l.rounds)) {
+    const r = state.rounds.find(r => r.id === id);
+    const result = r && roundResult(r);
+    if (!r) delete l.rounds[id];
+    else if (result && !sameMap(l.rounds[id].basis, payersOf(result.amounts))) { delete l.rounds[id]; dropped = true; }
   }
+  if (dropped) lotteryNotice = '入力が変わったため、抽選結果を取り消しました。もう一度抽選できます。';
   renderLottery();
 }
-function lotteryTable(amounts) {
-  const basis = lotteryPayers();
-  return `<div class="table-wrap" tabindex="0" role="region" aria-label="抽選の結果"><table><caption class="sr-only">抽選の結果</caption>
+// 抽選を反映した全員の金額。抽選していなければ null。回ごとの場合、抽選していない回はいつもの金額。
+function lotteryOutcome() {
+  if (!settlement) return null;
+  const l = state.lottery;
+  if (l.scope === 'total') return l.total ? { scope:'total', totals:l.total.amounts, basis:l.total.basis } : null;
+  const drawn = state.rounds.filter(r => l.rounds[r.id]);
+  if (!drawn.length) return null;
+  const rounds = settlement.rounds.map((result, i) => ({ ...result.amounts, ...(l.rounds[state.rounds[i].id] || {}).amounts }));
+  const totals = Object.fromEntries(state.members.map(m => [m.id, rounds.reduce((sum, a) => sum + (Object.hasOwn(a, m.id) ? a[m.id] : 0), 0)]));
+  return { scope:'round', totals, rounds, drawnNames:drawn.map(roundName) };
+}
+function lotteryTable(basis, amounts, label) {
+  return `<div class="table-wrap" tabindex="0" role="region" aria-label="${escapeHtml(label)}"><table><caption class="sr-only">${escapeHtml(label)}</caption>
     <thead><tr><th scope="col">名前</th><th scope="col">いつも</th><th scope="col">抽選</th><th scope="col">差</th></tr></thead>
     <tbody>${state.members.filter(m => Object.hasOwn(basis, m.id)).map(m => {
       const diff = amounts[m.id] - basis[m.id];
       return `<tr><th scope="row">${escapeHtml(memberName(m))}${m.id === state.organizerId ? '（幹事）' : ''}</th><td>${yen(basis[m.id])}</td><td>${yen(amounts[m.id])}</td><td class="${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${signedYen(diff)}</td></tr>`;
     }).join('')}</tbody>
-    <tfoot><tr><th scope="row">合計</th><td>${yen(settlement.grandTotal)}</td><td>${yen(Object.values(amounts).reduce((a, b) => a + b, 0))}</td><td></td></tr></tfoot></table></div>`;
+    <tfoot><tr><th scope="row">合計</th><td>${yen(Object.values(basis).reduce((a, b) => a + b, 0))}</td><td>${yen(Object.values(amounts).reduce((a, b) => a + b, 0))}</td><td></td></tr></tfoot></table></div>`;
 }
+// 1枚分の抽選カード。target は 'total' か回のID。
+function lotteryCard(target, title, basis, entry, unavailable) {
+  const label = title ? `${title}の抽選結果` : '抽選結果';
+  const body = unavailable ? `<p class="help">${unavailable}</p>`
+    : entry ? `<p class="success">抽選${entry.count}回目の結果 ／ 合計は請求額と一致</p>`
+    : '<p class="help">まだ抽選していません。いつもの金額のままです。</p>';
+  return `<div class="lottery-card" data-lottery-card="${target}">${title ? `<h3>${escapeHtml(title)}</h3>` : ''}${body}
+    <div class="lottery-table">${entry ? lotteryTable(basis, entry.amounts, label) : ''}</div>
+    <div class="lottery-actions"><button type="button" class="primary" data-lottery-action="draw" data-target="${target}" ${unavailable ? 'disabled' : ''}>${entry ? 'もう一度抽選する' : title ? 'この回を抽選する' : '抽選する'}</button>
+    ${entry ? `<button type="button" data-lottery-action="clear" data-target="${target}">結果を消す</button>` : ''}</div></div>`;
+}
+const drawUnavailable = basis => Object.keys(basis).length >= 2 ? '' : '支払う人が2人以上いると抽選できます。';
 function renderLottery() {
   if (spinning) return;
-  const lottery = activeLottery();
-  $('lottery').hidden = !(lotteryOpen || lottery);
-  $('lottery').classList.remove('spinning');
-  const canDraw = settlement && Object.keys(lotteryPayers()).length >= 2;
-  $('draw').disabled = !canDraw;
-  $('draw').textContent = lottery ? 'もう一度抽選する' : '抽選する';
-  $('lottery-off').textContent = lottery ? '抽選をやめる' : '閉じる';
-  const notice = lotteryNotice ? `<p class="help">${escapeHtml(lotteryNotice)}</p>` : '';
-  if (lottery) $('lottery-result').innerHTML = `<p class="success">抽選${lottery.count}回目の結果 ／ 合計は請求額と一致</p>${lotteryTable(lottery.amounts)}`;
-  else if (!settlement) $('lottery-result').innerHTML = notice + '<p class="help">精算結果が出ると抽選できます。</p>';
-  else if (!canDraw) $('lottery-result').innerHTML = notice + '<p class="help">支払う人が2人以上いると抽選できます。</p>';
-  else $('lottery-result').innerHTML = notice;
+  const l = state.lottery;
+  document.querySelectorAll('[name="lottery-scope"]').forEach(input => { input.checked = input.value === l.scope; });
+  let html = lotteryNotice ? `<p class="help">${escapeHtml(lotteryNotice)}</p>` : '';
+  if (l.scope === 'total') {
+    html += settlement ? lotteryCard('total', '', payersOf(settlement.totals), l.total, drawUnavailable(payersOf(settlement.totals)))
+      : lotteryCard('total', '', {}, null, '精算結果が出ると抽選できます。');
+  } else {
+    html += state.rounds.map(r => {
+      const result = roundResult(r);
+      if (!result) return lotteryCard(r.id, roundName(r), {}, null, '請求額と参加者を入力すると抽選できます。');
+      const basis = payersOf(result.amounts);
+      return lotteryCard(r.id, roundName(r), basis, l.rounds[r.id], drawUnavailable(basis));
+    }).join('');
+    const outcome = lotteryOutcome();
+    if (outcome) html += `<div class="lottery-card summary"><h3>全部の回の合計</h3><p class="help">抽選していない回は、いつもの金額で足しています。</p>${lotteryTable(payersOf(settlement.totals), outcome.totals, '全部の回の合計')}</div>`;
+  }
+  $('lottery-body').innerHTML = html;
 }
 const secureRandom = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
-// 隠し機能の入口：タイトルを3秒以内に5回タップする。
-const titleTaps = [];
-document.querySelector('h1').addEventListener('click', () => {
-  const now = Date.now();
-  titleTaps.push(now);
-  while (titleTaps.length && now - titleTaps[0] > 3000) titleTaps.shift();
-  if (titleTaps.length < 5 || lotteryOpen) return;
-  titleTaps.length = 0;
-  lotteryOpen = true; renderLottery();
-  $('status').textContent = '隠し機能「抽選モード」が開きました。精算結果の下にあります。';
-  $('lottery').scrollIntoView({ behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'center' });
+$('lottery-view').addEventListener('change', event => {
+  if (event.target.name !== 'lottery-scope' || spinning) return;
+  state.lottery.scope = event.target.value;
+  lotteryNotice = '';
+  clearUndo(); save(); renderLottery(); renderLine();
 });
-$('draw').addEventListener('click', () => {
-  if (!settlement || spinning) return;
-  const basis = lotteryPayers();
+$('lottery-body').addEventListener('click', event => {
+  const button = event.target.closest('[data-lottery-action]');
+  if (!button || spinning) return;
+  const target = button.dataset.target, l = state.lottery;
+  const r = target === 'total' ? null : state.rounds.find(r => r.id === target);
+  const title = r ? roundName(r) : '';
+  if (button.dataset.lotteryAction === 'clear') {
+    if (r) delete l.rounds[target]; else l.total = null;
+    lotteryNotice = '';
+    clearUndo(); save(); renderLottery(); renderLine();
+    $('status').textContent = `${title ? title + 'の' : ''}抽選結果を消して、いつもの金額に戻しました。`;
+    const next = document.querySelector(`[data-lottery-action="draw"][data-target="${CSS.escape(target)}"]`);
+    if (next) next.focus({ preventScroll:true });
+    return;
+  }
+  let basis, keeper;
+  if (r) { const result = roundResult(r); if (!result) return; basis = payersOf(result.amounts); keeper = result.bearerId; }
+  else { if (!settlement) return; basis = payersOf(settlement.totals); keeper = state.organizerId; }
   let amounts;
-  try { amounts = C.drawLottery(basis, state.organizerId, secureRandom); } catch (error) { $('status').textContent = error.message; return; }
-  const count = (activeLottery() ? state.lottery.count : 0) + 1;
+  try { amounts = C.drawLottery(basis, keeper, secureRandom); } catch (error) { $('status').textContent = error.message; return; }
+  const previous = r ? l.rounds[target] : l.total;
+  const entry = { basis, amounts, count:(previous ? previous.count : 0) + 1 };
   clearUndo(); lotteryNotice = '';
   const finish = () => {
     spinning = null;
-    state.lottery = { basis, amounts, count };
-    save(); renderLottery();
-    if (settlement) $('line-preview').textContent = lineText();
-    $('status').textContent = `抽選${count}回目の結果が出ました。`;
-    $('draw').focus({ preventScroll:true });
+    if (r) { if (state.rounds.includes(r)) l.rounds[target] = entry; } else l.total = entry;
+    save(); syncLottery(); renderLine();
+    $('status').textContent = `${title ? title + 'の' : ''}抽選${entry.count}回目の結果が出ました。`;
+    const next = document.querySelector(`[data-lottery-action="draw"][data-target="${CSS.escape(target)}"]`);
+    if (next) next.focus({ preventScroll:true });
   };
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) { finish(); return; }
   // 結果が出るまで、ルーレットのように数字を回す。
-  $('draw').disabled = true; $('lottery-off').disabled = true;
-  $('lottery').classList.add('spinning');
+  document.querySelectorAll('#lottery-view button, [name="lottery-scope"]').forEach(el => { el.disabled = true; });
+  const card = button.closest('.lottery-card');
+  card.classList.add('spinning');
   const started = Date.now();
   spinning = setInterval(() => {
-    const preview = C.drawLottery(basis, state.organizerId, Math.random);
-    $('lottery-result').innerHTML = `<p class="help">抽選中…</p>${lotteryTable(preview)}`;
-    if (Date.now() - started > 1200) { clearInterval(spinning); $('lottery-off').disabled = false; finish(); }
+    card.querySelector('.lottery-table').innerHTML = lotteryTable(basis, C.drawLottery(basis, keeper, Math.random), '抽選中');
+    if (Date.now() - started > 1200) { clearInterval(spinning); document.querySelectorAll('[name="lottery-scope"]').forEach(el => { el.disabled = false; }); finish(); }
   }, 70);
 });
-$('lottery-off').addEventListener('click', () => {
-  if (spinning) return;
-  const had = Boolean(state.lottery);
-  delete state.lottery; lotteryOpen = false; lotteryNotice = '';
-  clearUndo(); save(); renderLottery();
-  if (settlement) $('line-preview').textContent = lineText();
-  $('status').textContent = had ? '抽選をやめて、いつもの金額に戻しました。' : '抽選モードを閉じました。';
+// モードの切り替え。入力は共通で、「3.」の欄とLINEの文面だけが変わる。
+function renderMode() {
+  const lottery = state.mode === 'lottery';
+  document.querySelectorAll('.tabs [data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode)));
+  $('mode-note').hidden = !lottery;
+  $('results').hidden = lottery;
+  $('lottery-view').hidden = !lottery;
+  $('results-title').textContent = lottery ? '3. 抽選' : '3. 精算結果';
+}
+document.querySelector('.tabs').addEventListener('click', event => {
+  const mode = event.target.dataset.mode;
+  if (!mode || mode === state.mode || spinning) return;
+  state.mode = mode;
+  clearUndo(); save(); renderMode(); renderLine();
+  $('status').textContent = mode === 'lottery' ? '抽選モードに切り替えました。' : '通常モードに切り替えました。';
 });
+function renderLine() {
+  const outcome = state.mode === 'lottery' ? lotteryOutcome() : null;
+  const ready = settlement && (state.mode === 'normal' || outcome);
+  $('copy').disabled = !ready;
+  $('copy').textContent = state.mode === 'lottery' ? 'LINE用の文面をコピー（抽選の金額）' : 'LINE用の文面をコピー';
+  $('line-preview').textContent = ready ? lineText() : !settlement ? '精算結果が出ると、ここに文面が表示されます。' : '抽選すると、ここに抽選の金額で文面が表示されます。';
+}
 function renderUndo() {
   $('undo-bar').hidden = !undoState;
   $('undo-message').textContent = undoState ? undoState.label : '';
@@ -648,7 +732,7 @@ const snapshot = () => JSON.parse(JSON.stringify(state));
 function renderMessage() {
   document.querySelectorAll('[data-message]').forEach(el => { if (el.value !== state.message[el.dataset.message]) el.value = state.message[el.dataset.message]; });
 }
-function renderAll() { $('bulk-strength').value = state.defaultStrength; renderMessage(); renderMembers(); renderRounds(); refreshCalculated(); }
+function renderAll() { $('bulk-strength').value = state.defaultStrength; renderMode(); renderMessage(); renderMembers(); renderRounds(); refreshCalculated(); }
 // 描き直しで消える要素にフォーカスがあるとき、描き直し後に同じ役割の要素を探すためのセレクタ。
 function focusSelector(el) {
   const owner = el && el.closest && el.closest('[data-member],[data-round]');
@@ -768,7 +852,7 @@ $('load-example').addEventListener('click', () => {
   if (exampleUndo) {
     state = exampleUndo; exampleUndo = null; $('load-example').textContent = '例を読み込む'; changed('例の読み込み前の入力に戻しました。');
   } else {
-    exampleUndo = snapshot(); state = { ...C.createExample(), defaultStrength:'medium', message:{ ...state.message } };
+    exampleUndo = snapshot(); state = { ...C.createExample(), defaultStrength:'medium', message:{ ...state.message }, mode:state.mode, lottery:emptyLottery() };
     $('load-example').textContent = '例を読み込む前に戻す'; changed('例1を表示中です。例の表示中は保存しないので、ページを閉じても元の入力は残ります。');
   }
 });
@@ -789,20 +873,23 @@ function lineText() {
   const roundNames = state.rounds.map(roundName);
   const lines = [];
   if (greeting.trim()) lines.push(greeting.trim(), '');
-  const lottery = activeLottery();
-  if (lottery) {
+  const lottery = state.mode === 'lottery' ? lotteryOutcome() : null;
+  const who = m => m.id === state.organizerId ? `${memberName(m)}（幹事）` : `${memberName(m)}さん`;
+  if (lottery && lottery.scope === 'total') {
     lines.push('今回のお会計は、抽選で決めました。');
     state.members.forEach(m => {
-      if (!Object.hasOwn(lottery.amounts, m.id)) return;
-      const who = m.id === state.organizerId ? `${memberName(m)}（幹事）` : `${memberName(m)}さん`;
-      lines.push(`${who}　${yen(lottery.amounts[m.id])}（いつもは${yen(lottery.basis[m.id])}）`);
+      if (Object.hasOwn(lottery.totals, m.id)) lines.push(`${who(m)}　${yen(lottery.totals[m.id])}（いつもは${yen(lottery.basis[m.id])}）`);
     });
-  } else state.members.forEach(m => {
-    const attended = settlement.rounds.map((r, n) => Object.hasOwn(r.amounts, m.id) ? `${roundNames[n]} ${yen(r.amounts[m.id])}` : null).filter(Boolean);
-    if (!attended.length) return;
-    const who = m.id === state.organizerId ? `${memberName(m)}（幹事）` : `${memberName(m)}さん`;
-    lines.push(`${who}　${yen(settlement.totals[m.id])}` + (settlement.rounds.length > 1 ? `（${attended.join('／')}）` : ''));
-  });
+  } else {
+    if (lottery) lines.push(`今回のお会計は、${lottery.drawnNames.join('・')}を抽選で決めました。`);
+    const roundAmounts = lottery ? lottery.rounds : settlement.rounds.map(r => r.amounts);
+    const totals = lottery ? lottery.totals : settlement.totals;
+    state.members.forEach(m => {
+      const attended = roundAmounts.map((amounts, n) => Object.hasOwn(amounts, m.id) ? `${roundNames[n]} ${yen(amounts[m.id])}` : null).filter(Boolean);
+      if (!attended.length) return;
+      lines.push(`${who(m)}　${yen(totals[m.id])}` + (roundAmounts.length > 1 ? `（${attended.join('／')}）` : ''));
+    });
+  }
   lines.push('', settlement.rounds.length > 1
     ? `お会計：${settlement.rounds.map((r, n) => `${roundNames[n]} ${yen(r.total)}`).join('／')}（合計 ${yen(settlement.grandTotal)}）`
     : `お会計：${yen(settlement.grandTotal)}`);
@@ -817,11 +904,10 @@ $('message-settings').addEventListener('input', event => {
   const key = event.target.dataset.message;
   if (!key) return;
   state.message[key] = event.target.value;
-  clearUndo(); save();
-  if (settlement) $('line-preview').textContent = lineText();
+  clearUndo(); save(); renderLine();
 });
 $('copy').addEventListener('click', async () => {
-  if (!settlement) return;
+  if ($('copy').disabled) return;
   const text = lineText(), copiedRevision = revision;
   try {
     await navigator.clipboard.writeText(text);
