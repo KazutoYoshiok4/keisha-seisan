@@ -71,7 +71,7 @@
     th, td { padding:11px 12px; border-bottom:1px solid var(--line); text-align:right; font-variant-numeric:tabular-nums; }
     thead th { color:var(--muted); font-weight:600; border-bottom:1px solid var(--ink); }
     th:first-child { text-align:left; position:sticky; left:0; background:var(--paper); max-width:180px; overflow:hidden; text-overflow:ellipsis; }
-    td:last-child { font-weight:700; }
+    .total-col { font-weight:700; }
     tfoot th, tfoot td { border-top:3px double var(--ink); border-bottom:0; font-weight:700; }
     .sum { font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; }
     #copy-text { min-height:260px; resize:vertical; margin-top:10px; }
@@ -99,6 +99,25 @@
     .preview summary { cursor:pointer; color:var(--accent); font-weight:600; padding:6px 0; }
     .preview pre { white-space:pre-wrap; overflow-wrap:anywhere; font-family:inherit; font-size:14px; background:white; border:1px solid var(--line); border-radius:4px; padding:12px; margin:6px 0 0; }
     #status { min-height:24px; margin:12px 0 0; }
+    @media (prefers-reduced-motion: no-preference) { html { scroll-behavior:smooth; } }
+    .header-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .button-link { display:inline-flex; align-items:center; justify-content:center; min-height:46px; padding:8px 14px; border:1px solid var(--field); border-radius:4px; background:white; color:var(--ink); font-weight:600; text-decoration:none; }
+    .button-link.primary { background:var(--accent); border-color:var(--accent); color:white; }
+    .button-link[aria-disabled=true] { color:#9a958b; background:var(--pale); border-color:var(--line); pointer-events:none; }
+    .wide-link { display:flex; margin-top:20px; }
+    .send { margin-top:24px; padding-top:16px; border-top:1px solid var(--line); }
+    .send h3 { font-size:16px; margin-bottom:6px; }
+    #line-preview { white-space:pre-wrap; overflow-wrap:anywhere; font-family:inherit; font-size:14px; background:white; border:1px solid var(--line); border-radius:4px; padding:12px; margin:0; }
+    .send-actions { display:flex; gap:8px; margin-top:12px; }
+    .send-actions > * { flex:1; }
+    .send-actions #share { flex:2; }
+    .message-edit summary { cursor:pointer; color:var(--accent); font-weight:600; padding:12px 0; min-height:46px; }
+    .message-edit .message-settings { margin:4px 0 0; padding:0; border:0; }
+    .guide ol { padding-left:1.4em; margin:8px 0 20px; }
+    .guide li { margin-bottom:10px; }
+    .guide li strong { display:block; }
+    .guide h3 { font-size:16px; margin-top:20px; }
+    .guide p { margin:4px 0 12px; }
     footer { margin-top:32px; padding-top:12px; border-top:1px solid var(--line); }
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     [hidden] { display:none !important; }
@@ -107,68 +126,85 @@
 </head>
 <body>
 <main>
-  <header>
+  <header id="top">
     <p class="eyebrow">飲み会の幹事に</p>
     <h1>傾斜つき精算ツール</h1>
-    <p class="muted">ランクと参加した回を選ぶだけ。端数は上位ランクから配り、残りを幹事がまとめます。</p>
-    <button type="button" id="load-example">例を読み込む</button>
-    <p class="help">入力はこのブラウザに自動保存。端末の外には送信しません。例の表示中は保存しません。</p>
+    <div class="header-actions"><a class="button-link" href="#guide">使い方を見る</a><button type="button" id="load-example">例を見る</button></div>
   </header>
   <div class="tabs" role="group" aria-label="モードの切り替え">
     <button type="button" data-mode="normal" aria-pressed="true">通常モード</button>
     <button type="button" data-mode="lottery" aria-pressed="false">抽選モード</button>
   </div>
-  <p id="mode-note" class="help mode-note" hidden>抽選モードです。メンバーと回の入力は通常モードと共通で、いちばん下の「3. 抽選」で金額を決めます。</p>
+  <p id="mode-note" class="help mode-note" hidden>入力は通常モードと共通です。金額はいちばん下の「抽選」で決めます。</p>
   <p id="status" class="help" role="status" aria-live="polite"></p>
   <section class="panel" aria-labelledby="members-title">
-    <div class="heading"><h2 id="members-title">1. メンバー</h2></div>
-    <p class="help rank-note"><strong>ランク</strong>は支払いの多さの段階です。<strong>1がいちばん多く払い</strong>、数字が大きいほど少なくなります（1〜7）。役職や年次の順に、上の人ほど小さい数字にしてください。同じ立場の人は同じランクにします。</p>
-    <div class="member member-head" aria-hidden="true"><span>名前（空欄でもOK）</span><span>ランク</span><span>幹事</span><span></span></div>
+    <div class="heading"><h2 id="members-title">メンバー</h2></div>
+    <p class="help rank-note">ランクは1が多め、7が少なめ。同じ立場なら同じランクに。</p>
+    <div class="member member-head" aria-hidden="true"><span>名前</span><span>ランク</span><span>幹事</span><span></span></div>
     <div id="members"></div>
     <button type="button" class="wide" id="add-member">＋ メンバーを追加</button>
   </section>
   <section class="panel" aria-labelledby="rounds-title">
-    <h2 id="rounds-title">2. 回ごとの精算</h2>
+    <h2 id="rounds-title">お会計</h2>
     <div class="bulk">
-      <label class="field" for="bulk-strength">まとめて設定する傾斜
+      <label class="field" for="bulk-strength">傾斜をまとめて設定
         <select id="bulk-strength"><option value="equal">平等</option><option value="weak">弱</option><option value="medium" selected>中</option><option value="strong">強</option></select>
       </label>
-      <button type="button" id="apply-strength">全回同じ傾斜にする</button>
-      <p class="help" style="margin:0;flex-basis:100%">新しく追加する回も、ここで選んだ傾斜になります。</p>
+      <button type="button" id="apply-strength">全回に反映</button>
     </div>
-    <p class="help">参加しない人のチェックを外してください。微調整は1人あたりの金額を動かします。</p>
     <div id="rounds"></div>
     <button type="button" class="wide" id="add-round">＋ 回を追加</button>
-    <p class="help">人数・ランク・幹事・請求額・参加者・傾斜・差額担当を変えると、該当する回の微調整はリセットされます。</p>
   </section>
   <section class="panel" aria-labelledby="results-title">
-    <div class="heading"><h2 id="results-title">3. 精算結果</h2><a href="#rounds-title">入力に戻る ↑</a></div>
+    <div class="heading"><h2 id="results-title">精算</h2><a href="#rounds-title">入力に戻る ↑</a></div>
     <div id="results"></div>
     <div id="lottery-view" hidden>
-      <p class="help">1人ずつ、いつもの金額の0.5〜1.5倍の範囲でランダムに決めます。合計は請求額と同じです。LINEの文面も抽選の金額になります。</p>
+      <p class="help">いつもの金額の0.5〜1.5倍の範囲で、1人ずつランダムに決めます。合計は変わりません。</p>
       <fieldset><legend>抽選のしかた</legend><div class="bearer-choice">
         <label class="chip"><input type="radio" name="lottery-scope" value="total">全部の回をまとめて</label>
         <label class="chip"><input type="radio" name="lottery-scope" value="round">回ごと</label>
       </div></fieldset>
       <div id="lottery-body"></div>
     </div>
-    <fieldset id="message-settings" class="message-settings"><legend>LINEの文面</legend>
-      <label class="field">はじめのあいさつ<textarea data-message="greeting" rows="2" maxlength="200"></textarea></label>
-      <label class="field">お支払い方法（空欄なら載せません）<input data-message="payment" maxlength="100" placeholder="例：PayPay（ID：xxxx）または現金" autocomplete="off"></label>
-      <label class="field">お支払い期限（空欄なら載せません）<input data-message="deadline" maxlength="50" placeholder="例：11月15日（金）" autocomplete="off"></label>
-      <label class="field">むすびのことば<textarea data-message="closing" rows="2" maxlength="200"></textarea></label>
-      <details class="preview"><summary>送る文面を確認する</summary><pre id="line-preview"></pre></details>
-    </fieldset>
-    <button type="button" class="primary wide" id="copy" disabled>LINE用の文面をコピー</button>
-    <p id="copy-status" class="help" role="status" aria-live="polite"></p>
+    <div class="send">
+      <h3>送る文面</h3>
+      <pre id="line-preview"></pre>
+      <div class="send-actions"><a id="share" class="button-link primary" target="_blank" rel="noopener" aria-disabled="true">LINEで送る</a><button type="button" id="copy" disabled>コピー</button></div>
+      <p id="copy-status" class="help" role="status" aria-live="polite"></p>
     <div id="copy-fallback" hidden>
       <label class="field" for="copy-text">コピーできない場合は、下の文面を選択してコピーしてください。</label>
       <textarea id="copy-text" readonly></textarea>
       <button type="button" class="wide" id="select-text">文面をすべて選択</button>
     </div>
+      <details class="message-edit"><summary>文面を編集（あいさつ・支払い方法・期限）</summary>
+        <div id="message-settings" class="message-settings">
+          <label class="field">はじめのあいさつ<textarea data-message="greeting" rows="2" maxlength="200"></textarea></label>
+          <label class="field">支払い方法<input data-message="payment" maxlength="100" placeholder="例：PayPay（ID：xxxx）または現金" autocomplete="off"></label>
+          <label class="field">支払い期限<input data-message="deadline" maxlength="50" placeholder="例：11月15日（金）" autocomplete="off"></label>
+          <label class="field">締めのあいさつ<textarea data-message="closing" rows="2" maxlength="200"></textarea></label>
+          <p class="help">空欄の項目は文面に入りません。</p>
+        </div>
+      </details>
+    </div>
+  </section>
+  <section id="guide" class="panel guide" aria-labelledby="guide-title">
+    <h2 id="guide-title">使い方</h2>
+    <ol class="steps">
+      <li><strong>メンバーを入れる</strong>名前とランクを選び、幹事に印をつけます。ランクは1がいちばん多く払い、数字が大きいほど少なくなります（1〜7）。役職や年次が上の人ほど小さい数字に、同じ立場の人は同じランクにします。名前は空欄でもかまいません。</li>
+      <li><strong>お会計を入れる</strong>1次会、2次会…と回を足して、請求額を入れます。来なかった人はチェックを外します。傾斜は「平等・弱・中・強」から選べます。</li>
+      <li><strong>LINEで送る</strong>「精算」に1人ずつの金額と送る文面が出ます。「LINEで送る」かコピーして、グループに貼り付けます。支払い方法や期限は「文面を編集」で入れられます。</li>
+    </ol>
+    <h3>端数と差額</h3>
+    <p>1人あたりの金額は100円単位で切り捨てます。余りは上のランクから順に100円ずつ配り、それでも残った100円未満は「差額を持つ人」が払います。ふだんは幹事ですが、回ごとにほかの人にも変えられます。下のランクの人が上のランクより多く払うことはありません。</p>
+    <h3>微調整</h3>
+    <p>各回の「ランクごとの金額・微調整」を開くと、ランクごとの1人あたりの金額を100円単位で増やしたり減らしたりできます。増減した分は、差額を持つ人の支払いで合わせます。人数・ランク・幹事・請求額・参加者・傾斜・差額を持つ人を変えると、その回の微調整はリセットされます。</p>
+    <h3>抽選モード</h3>
+    <p>上のタブで切り替えます。いつもの金額の0.5〜1.5倍の範囲で、1人ずつランダムに金額を決めます。合計は請求額のままです。全部の回をまとめて回すか、回ごとに回すかを選べます。抽選すると、送る文面も抽選の金額になります。</p>
+    <h3>保存について</h3>
+    <p>入力はこのブラウザに自動で保存され、端末の外には送信しません。iPhoneのSafariでは、しばらく開かないと消えることがあるので、ホーム画面に追加しておくと安心です。「例を見る」で例を表示している間は保存しません。</p>
+    <a class="button-link wide-link" href="#top">ツールに戻る ↑</a>
   </section>
   <div id="undo-bar" class="toast" hidden><span id="undo-message" role="status" aria-live="polite"></span><button type="button" id="undo">取り消す</button></div>
-  <footer class="help">ログイン不要・100円単位で切り捨て。差額を持つ人だけ1円単位になります。</footer>
 </main>
 <!-- 計算ロジック（DOMに依存しない純粋関数。test.js はこのブロックを取り出して検証する） -->
 <script id="settlement-calc">
@@ -414,7 +450,7 @@ function loadState() {
     if (!raw) return initialState();
     const loaded = parseState(raw);
     const dropped = dropInvalidAdjustments(loaded);
-    storageNotice = '前回の入力を読み込みました。' + (dropped ? `計算できない微調整があった${dropped}回分は、微調整を解除しました。` : '');
+    storageNotice = dropped ? `計算できない微調整があった${dropped}回分は、微調整を解除しました。` : '';
     return loaded;
   } catch (_) {
     // 読み込めない原本は上書きされる前に退避しておく。
@@ -456,7 +492,7 @@ function save() {
 }
 function numericRound(round) {
   // 全角数字・全角カンマ・「円」「¥」・空白を許容する。
-  const text = String(round.amount).normalize('NFKC').replace(/[円¥\\s]/g, '');
+  const text = String(round.amount).normalize('NFKC').replace(/[円¥\s]/g, '');
   const valid = /^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(text);
   return { ...round, amount:valid ? Number(text.replace(/,/g, '')) : NaN };
 }
@@ -492,6 +528,19 @@ function renderMembers() {
       <button type="button" class="delete" data-action="remove-member" aria-label="${i + 1}人目（${escapeHtml(memberName(m))}）を削除" ${state.members.length === 1 ? 'disabled' : ''}>削除</button>
     </div>`).join('');
 }
+// 請求額の欄は、入力中でなければ「35,038」と桁区切りで見せる。保存する値は入力したまま。
+function displayAmount(r) {
+  const n = numericRound(r).amount;
+  return Number.isSafeInteger(n) && !isBlankAmount(r) ? n.toLocaleString('ja-JP') : String(r.amount);
+}
+$('rounds').addEventListener('focusin', event => {
+  if (event.target.dataset.field === 'amount') event.target.value = String(state.rounds.find(r => r.id === event.target.closest('[data-round]').dataset.round).amount);
+});
+$('rounds').addEventListener('focusout', event => {
+  if (event.target.dataset.field !== 'amount') return;
+  const r = state.rounds.find(r => r.id === event.target.closest('[data-round]').dataset.round);
+  if (r) event.target.value = displayAmount(r);
+});
 function renderRounds() {
   reconcileBearers();
   $('rounds').innerHTML = state.rounds.map(r => `
@@ -499,10 +548,10 @@ function renderRounds() {
       <div class="heading"><h3 id="title-${r.id}">${escapeHtml(roundName(r))}</h3><button type="button" class="delete" data-action="remove-round" aria-label="${escapeHtml(roundName(r))}を削除">この回を削除</button></div>
       <div class="fields">
         <label class="field full">回の名前<input data-field="round-name" maxlength="40" placeholder="例：1次会、焼肉、カラオケ" value="${escapeHtml(r.name)}" autocomplete="off"></label>
-        <label class="field">請求額（円）<input data-field="amount" inputmode="numeric" maxlength="30" placeholder="35,038" value="${escapeHtml(r.amount)}" autocomplete="off" aria-describedby="detail-${r.id}"></label>
+        <label class="field">請求額（円）<input data-field="amount" inputmode="numeric" maxlength="30" placeholder="35,038" value="${escapeHtml(displayAmount(r))}" autocomplete="off" aria-describedby="detail-${r.id}"></label>
         <label class="field">傾斜の強さ<select data-field="strength">${Object.entries(strengthLabels).map(([key, label]) => `<option value="${key}" ${r.strength === key ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
       </div>
-      <fieldset><legend>参加者</legend><div class="participants">${state.members.map(m => `<label class="chip"><input type="checkbox" data-field="participant" value="${m.id}" ${r.participantIds.includes(m.id) ? 'checked' : ''}><span>${escapeHtml(memberName(m))}${m.id === state.organizerId ? '（幹事）' : ''}</span></label>`).join('')}</div></fieldset>
+      <fieldset><legend>参加者 ${r.participantIds.length}人</legend><div class="participants">${state.members.map(m => `<label class="chip"><input type="checkbox" data-field="participant" value="${m.id}" ${r.participantIds.includes(m.id) ? 'checked' : ''}><span>${escapeHtml(memberName(m))}${m.id === state.organizerId ? '（幹事）' : ''}</span></label>`).join('')}</div></fieldset>
       ${bearerChoice(r)}
       <div id="detail-${r.id}"></div>
     </article>`).join('');
@@ -516,7 +565,7 @@ function adjustmentSummary(r, bearer) {
   }).filter(p => p.adj !== 0 && p.count > 0).sort((a, b) => a.rank - b.rank);
   if (!parts.length) return '';
   const shift = -parts.reduce((sum, p) => sum + p.adj * p.count, 0);
-  return `<p class="adjust-summary">微調整の帳尻：${parts.map(p => `ランク${p.rank} ${signedYen(p.adj)}×${p.count}人＝${signedYen(p.adj * p.count)}`).join('、')}<br>→ その分、${escapeHtml(memberName(bearer))}（差額担当）の支払いが <strong>${signedYen(shift)}</strong>。この回の合計は請求額のままです。</p>`;
+  return `<p class="adjust-summary">調整の内訳：${parts.map(p => `ランク${p.rank} ${signedYen(p.adj)}×${p.count}人＝${signedYen(p.adj * p.count)}`).join('、')}<br>→ その分、${escapeHtml(memberName(bearer))}（差額担当）の支払いが <strong>${signedYen(shift)}</strong>。この回の合計は請求額のままです。</p>`;
 }
 // 「ランクごとの金額・微調整」を開いている回。描き直しても開いたままにする（保存はしない）。
 const openAdjustments = new Set();
@@ -545,10 +594,9 @@ function refreshCalculated() {
       const bearerPays = result.amounts[bearer.id], bearerBase = result.rankAmounts[bearer.rank];
       if (diffLabel) diffLabel.textContent = `（差額 ${signedYen(bearerPays - bearerBase)}）`;
       const ranks = Object.keys(result.rankAmounts).map(Number).sort((a, b) => a - b);
-      target.innerHTML = `<p class="success">✓ ${yen(result.total)} ／ 請求額と一致</p>
-        <p class="help">差額担当：${escapeHtml(memberName(bearer))}　支払 ${yen(bearerPays)}（ランク${bearer.rank}の金額 ${yen(bearerBase)} ＋ 差額 ${yen(bearerPays - bearerBase)}）</p>
-        ${adjustmentSummary(r, bearer)}
+      target.innerHTML = `${adjustmentSummary(r, bearer)}
         <details class="adjust" data-adjust-for="${r.id}" ${openAdjustments.has(r.id) ? 'open' : ''}><summary>ランクごとの金額・微調整${hasAdjustments(r) ? '（調整中）' : ''}<span class="summary-note">各ランクの1人あたりの金額を、100円単位で増やしたり減らしたりできます。</span></summary>
+        <p class="help">差額担当：${escapeHtml(memberName(bearer))}　支払 ${yen(bearerPays)}（ランク${bearer.rank}の金額 ${yen(bearerBase)} ＋ 差額 ${yen(bearerPays - bearerBase)}）</p>
         <div aria-label="ランク別の微調整">${ranks.map(rank => {
           const adjustment = r.adjustments[rank] || 0;
           return `<div class="adjust-row"><div><strong>ランク${rank}</strong><span class="adjust-value">${yen(result.rankAmounts[rank])} / 人<br>調整 ${adjustment > 0 ? '+' : ''}${yen(adjustment)}</span></div>
@@ -562,12 +610,10 @@ function refreshCalculated() {
   try {
     settlement = C.calculateSettlement(state.members, state.organizerId, state.rounds.map(numericRound));
     $('results').innerHTML = `<div class="row"><span class="help">全回の合計</span><span class="sum">${yen(settlement.grandTotal)}</span></div>
-      <p class="help">横にスクロールして回別金額を確認できます。— は不参加。</p>
       <div class="table-wrap" tabindex="0" role="region" aria-label="1人ごとの回別金額と合計"><table><caption class="sr-only">精算結果</caption>
-      <thead><tr><th scope="col">名前</th>${state.rounds.map(r => `<th scope="col">${escapeHtml(roundName(r))}</th>`).join('')}<th scope="col">合計</th></tr></thead>
-      <tbody>${state.members.map(m => `<tr><th scope="row" title="${escapeHtml(memberName(m))}">${escapeHtml(memberName(m))}${m.id === state.organizerId ? '（幹事）' : ''}</th>${settlement.rounds.map(r => `<td>${Object.hasOwn(r.amounts, m.id) ? yen(r.amounts[m.id]) : '—'}</td>`).join('')}<td>${yen(settlement.totals[m.id])}</td></tr>`).join('')}</tbody>
-      <tfoot><tr><th scope="row">請求額</th>${settlement.rounds.map(r => `<td>${yen(r.total)}</td>`).join('')}<td>${yen(settlement.grandTotal)}</td></tr></tfoot></table></div>
-      ${settlement.rounds.map((r, i) => `<div class="success">✓ ${escapeHtml(roundName(state.rounds[i]))}：${yen(r.total)} ／ 請求額と一致</div>`).join('')}`;
+      <thead><tr><th scope="col">名前</th><th scope="col" class="total-col">合計</th>${state.rounds.map(r => `<th scope="col">${escapeHtml(roundName(r))}</th>`).join('')}</tr></thead>
+      <tbody>${state.members.map(m => `<tr><th scope="row" title="${escapeHtml(memberName(m))}">${escapeHtml(memberName(m))}${m.id === state.organizerId ? '（幹事）' : ''}</th><td class="total-col">${yen(settlement.totals[m.id])}</td>${settlement.rounds.map(r => `<td>${Object.hasOwn(r.amounts, m.id) ? yen(r.amounts[m.id]) : '—'}</td>`).join('')}</tr>`).join('')}</tbody>
+      <tfoot><tr><th scope="row">請求額</th><td class="total-col">${yen(settlement.grandTotal)}</td>${settlement.rounds.map(r => `<td>${yen(r.total)}</td>`).join('')}</tr></tfoot></table></div>`;
     syncLottery();
     renderLine();
   } catch (_) {
@@ -596,7 +642,7 @@ function syncLottery() {
     if (!r) delete l.rounds[id];
     else if (result && !sameMap(l.rounds[id].basis, payersOf(result.amounts))) { delete l.rounds[id]; dropped = true; }
   }
-  if (dropped) lotteryNotice = '入力が変わったため、抽選結果を取り消しました。もう一度抽選できます。';
+  if (dropped) lotteryNotice = '入力が変わったので、抽選結果を取り消しました。';
   renderLottery();
 }
 // 抽選を反映した全員の金額。抽選していなければ null。回ごとの場合、抽選していない回はいつもの金額。
@@ -623,12 +669,12 @@ function lotteryTable(basis, amounts, label) {
 function lotteryCard(target, title, basis, entry, unavailable) {
   const label = title ? `${title}の抽選結果` : '抽選結果';
   const body = unavailable ? `<p class="help">${unavailable}</p>`
-    : entry ? `<p class="success">抽選${entry.count}回目の結果 ／ 合計は請求額と一致</p>`
-    : '<p class="help">まだ抽選していません。いつもの金額のままです。</p>';
+    : entry ? `<p class="success">抽選${entry.count}回目</p>`
+    : '<p class="help">いつもの金額のままです。</p>';
   return `<div class="lottery-card" data-lottery-card="${target}">${title ? `<h3>${escapeHtml(title)}</h3>` : ''}${body}
     <div class="lottery-table">${entry ? lotteryTable(basis, entry.amounts, label) : ''}</div>
-    <div class="lottery-actions"><button type="button" class="primary" data-lottery-action="draw" data-target="${target}" ${unavailable ? 'disabled' : ''}>${entry ? 'もう一度抽選する' : title ? 'この回を抽選する' : '抽選する'}</button>
-    ${entry ? `<button type="button" data-lottery-action="clear" data-target="${target}">結果を消す</button>` : ''}</div></div>`;
+    <div class="lottery-actions"><button type="button" class="primary" data-lottery-action="draw" data-target="${target}" ${unavailable ? 'disabled' : ''}>${entry ? 'もう一回' : '抽選する'}</button>
+    ${entry ? `<button type="button" data-lottery-action="clear" data-target="${target}">元に戻す</button>` : ''}</div></div>`;
 }
 const drawUnavailable = basis => Object.keys(basis).length >= 2 ? '' : '支払う人が2人以上いると抽選できます。';
 function renderLottery() {
@@ -647,7 +693,7 @@ function renderLottery() {
       return lotteryCard(r.id, roundName(r), basis, l.rounds[r.id], drawUnavailable(basis));
     }).join('');
     const outcome = lotteryOutcome();
-    if (outcome) html += `<div class="lottery-card summary"><h3>全部の回の合計</h3><p class="help">抽選していない回は、いつもの金額で足しています。</p>${lotteryTable(payersOf(settlement.totals), outcome.totals, '全部の回の合計')}</div>`;
+    if (outcome) html += `<div class="lottery-card summary"><h3>全部の回の合計</h3><p class="help">抽選していない回は、いつもの金額です。</p>${lotteryTable(payersOf(settlement.totals), outcome.totals, '全部の回の合計')}</div>`;
   }
   $('lottery-body').innerHTML = html;
 }
@@ -668,7 +714,6 @@ $('lottery-body').addEventListener('click', event => {
     if (r) delete l.rounds[target]; else l.total = null;
     lotteryNotice = '';
     clearUndo(); save(); renderLottery(); renderLine();
-    $('status').textContent = `${title ? title + 'の' : ''}抽選結果を消して、いつもの金額に戻しました。`;
     const next = document.querySelector(`[data-lottery-action="draw"][data-target="${CSS.escape(target)}"]`);
     if (next) next.focus({ preventScroll:true });
     return;
@@ -685,7 +730,6 @@ $('lottery-body').addEventListener('click', event => {
     spinning = null;
     if (r) { if (state.rounds.includes(r)) l.rounds[target] = entry; } else l.total = entry;
     save(); syncLottery(); renderLine();
-    $('status').textContent = `${title ? title + 'の' : ''}抽選${entry.count}回目の結果が出ました。`;
     const next = document.querySelector(`[data-lottery-action="draw"][data-target="${CSS.escape(target)}"]`);
     if (next) next.focus({ preventScroll:true });
   };
@@ -707,20 +751,21 @@ function renderMode() {
   $('mode-note').hidden = !lottery;
   $('results').hidden = lottery;
   $('lottery-view').hidden = !lottery;
-  $('results-title').textContent = lottery ? '3. 抽選' : '3. 精算結果';
+  $('results-title').textContent = lottery ? '抽選' : '精算';
 }
 document.querySelector('.tabs').addEventListener('click', event => {
   const mode = event.target.dataset.mode;
   if (!mode || mode === state.mode || spinning) return;
   state.mode = mode;
   clearUndo(); save(); renderMode(); renderLine();
-  $('status').textContent = mode === 'lottery' ? '抽選モードに切り替えました。' : '通常モードに切り替えました。';
 });
 function renderLine() {
   const outcome = state.mode === 'lottery' ? lotteryOutcome() : null;
   const ready = settlement && (state.mode === 'normal' || outcome);
   $('copy').disabled = !ready;
-  $('copy').textContent = state.mode === 'lottery' ? 'LINE用の文面をコピー（抽選の金額）' : 'LINE用の文面をコピー';
+  // LINEの公式の共有URL。アプリが入っていればLINEが開き、送る相手を選べる。
+  if (ready) { $('share').href = 'https://line.me/R/share?text=' + encodeURIComponent(lineText()); $('share').removeAttribute('aria-disabled'); }
+  else { $('share').removeAttribute('href'); $('share').setAttribute('aria-disabled', 'true'); }
   $('line-preview').textContent = ready ? lineText() : !settlement ? '精算結果が出ると、ここに文面が表示されます。' : '抽選すると、ここに抽選の金額で文面が表示されます。';
 }
 function renderUndo() {
@@ -765,7 +810,8 @@ $('members').addEventListener('change', event => {
   if (field === 'rank') m.rank = Number(event.target.value);
   else if (field === 'organizer') state.organizerId = m.id;
   else return;
-  resetAdjustments(); changed('設定を変更し、全回の微調整をリセットしました。');
+  const had = state.rounds.some(hasAdjustments);
+  resetAdjustments(); changed(had ? '微調整をリセットしました。' : '');
 });
 $('members').addEventListener('click', event => {
   if (event.target.dataset.action !== 'remove-member' || state.members.length === 1) return;
@@ -776,13 +822,15 @@ $('members').addEventListener('click', event => {
   state.rounds.forEach(r => {
     r.participantIds = r.participantIds.filter(p => p !== id);
   });
+  const had = state.rounds.some(hasAdjustments);
   resetAdjustments();
-  changed('メンバーを削除し、全回の微調整をリセットしました。', true, { state:before, label:`「${name}」を削除しました。` });
+  changed(had ? '微調整をリセットしました。' : '', true, { state:before, label:`「${name}」を削除しました。` });
 });
 $('add-member').addEventListener('click', () => {
   const m = { id:uid('m'), name:'', rank:3 };
   state.members.push(m); state.rounds.forEach(r => { r.participantIds.push(m.id); });
-  resetAdjustments(); changed('メンバーを全回の参加者に追加しました。微調整はリセットしました。');
+  const had = state.rounds.some(hasAdjustments);
+  resetAdjustments(); changed(had ? '微調整をリセットしました。' : '');
   $('members').lastElementChild.querySelector('input').focus();
 });
 $('rounds').addEventListener('input', event => {
@@ -799,7 +847,7 @@ $('rounds').addEventListener('input', event => {
   }
   const hadAdjustments = hasAdjustments(r);
   r.amount = event.target.value; resetAdjustments([r]);
-  changed(hadAdjustments ? '請求額を変更し、この回の微調整をリセットしました。' : '', false);
+  changed(hadAdjustments ? 'この回の微調整をリセットしました。' : '', false);
 });
 $('rounds').addEventListener('change', event => {
   const field = event.target.dataset.field;
@@ -812,7 +860,8 @@ $('rounds').addEventListener('change', event => {
   } else if (field === 'participant') {
     r.participantIds = event.target.checked ? [...r.participantIds, event.target.value] : r.participantIds.filter(id => id !== event.target.value);
   } else return;
-  resetAdjustments([r]); changed('設定を変更し、この回の微調整をリセットしました。');
+  const had = hasAdjustments(r);
+  resetAdjustments([r]); changed(had ? 'この回の微調整をリセットしました。' : '');
 });
 $('rounds').addEventListener('click', event => {
   const action = event.target.dataset.action;
@@ -821,23 +870,24 @@ $('rounds').addEventListener('click', event => {
   if (action === 'remove-round') {
     const before = snapshot(), name = roundName(r);
     state.rounds = state.rounds.filter(other => other !== r);
-    changed('回を削除しました。', true, { state:before, label:`「${name}」を削除しました。` });
+    changed('', true, { state:before, label:`「${name}」を削除しました。` });
   } else if (action === 'clear-adjustments') {
-    resetAdjustments([r]); changed('この回の微調整を解除しました。', false);
+    resetAdjustments([r]); changed('', false);
   } else if (action === 'adjust') {
     const rank = Number(event.target.dataset.rank), delta = Number(event.target.dataset.delta);
     if (!C.canAdjustRound(state.members, state.organizerId, numericRound(r), rank, delta)) return;
     r.adjustments[rank] = (r.adjustments[rank] || 0) + delta;
-    changed('微調整を反映しました。差額は自動で差額担当者に回ります。', false);
+    changed('', false);
   }
 });
 $('add-round').addEventListener('click', () => {
   state.rounds.push({ id:uid('r'), name:nextRoundName(), amount:'', participantIds:state.members.map(m => m.id), strength:state.defaultStrength, adjustments:{} });
-  changed('全員が参加する回を追加しました。');
+  changed('');
 });
 $('apply-strength').addEventListener('click', () => {
   state.rounds.forEach(r => { r.strength = state.defaultStrength; });
-  resetAdjustments(); changed('全回の傾斜をそろえ、微調整をリセットしました。');
+  const had = state.rounds.some(hasAdjustments);
+  resetAdjustments(); changed(had ? '全回の傾斜をそろえ、微調整をリセットしました。' : '');
 });
 $('bulk-strength').addEventListener('change', event => {
   state.defaultStrength = event.target.value;
@@ -846,14 +896,14 @@ $('bulk-strength').addEventListener('change', event => {
 $('undo').addEventListener('click', () => {
   if (!undoState) return;
   state = undoState.state;
-  changed('削除を取り消しました。');
+  changed('');
 });
 $('load-example').addEventListener('click', () => {
   if (exampleUndo) {
-    state = exampleUndo; exampleUndo = null; $('load-example').textContent = '例を読み込む'; changed('例の読み込み前の入力に戻しました。');
+    state = exampleUndo; exampleUndo = null; $('load-example').textContent = '例を見る'; changed('');
   } else {
     exampleUndo = snapshot(); state = { ...C.createExample(), defaultStrength:'medium', message:{ ...state.message }, mode:state.mode, lottery:emptyLottery() };
-    $('load-example').textContent = '例を読み込む前に戻す'; changed('例1を表示中です。例の表示中は保存しないので、ページを閉じても元の入力は残ります。');
+    $('load-example').textContent = '例を閉じる'; changed('例を表示しています。この間は保存しません。');
   }
 });
 // 別のタブで保存された内容を取り込み、古い画面で上書きしないようにする。
@@ -861,7 +911,7 @@ window.addEventListener('storage', event => {
   if (event.key !== STORAGE_KEY || event.newValue === null) return;
   let loaded;
   try { loaded = parseState(event.newValue); } catch (_) { return; }
-  if (exampleUndo) { exampleUndo = loaded; $('status').textContent = '別のタブで入力が変更されました。例から戻すと反映されます。'; return; }
+  if (exampleUndo) { exampleUndo = loaded; $('status').textContent = '別のタブで入力が変わりました。例を閉じると反映されます。'; return; }
   state = loaded; undoState = null; renderUndo();
   revision++; $('copy-fallback').hidden = true; $('copy-text').value = ''; $('copy-status').textContent = '';
   renderAll();
@@ -911,10 +961,10 @@ $('copy').addEventListener('click', async () => {
   const text = lineText(), copiedRevision = revision;
   try {
     await navigator.clipboard.writeText(text);
-    if (copiedRevision === revision) { $('copy-status').textContent = 'コピーしました。LINEに貼り付けて使えます。'; $('copy-fallback').hidden = true; }
+    if (copiedRevision === revision) { $('copy-status').textContent = 'コピーしました。'; $('copy-fallback').hidden = true; }
   } catch (_) {
     if (copiedRevision !== revision) return;
-    $('copy-status').textContent = '自動コピーが使えないため、文面を表示しました。';
+    $('copy-status').textContent = '自動でコピーできなかったので、下の文面を選んでコピーしてください。';
     $('copy-fallback').hidden = false; $('copy-text').value = text;
     $('copy-text').focus(); $('copy-text').select();
   }
