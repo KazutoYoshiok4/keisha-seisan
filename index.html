@@ -25,6 +25,7 @@
     .heading { margin-bottom:12px; flex-wrap:wrap; }
     a { color:var(--accent); }
     button, input, select, textarea { font:inherit; }
+    input, select, textarea { font-size:16px; }
     button, select, input:not([type=checkbox]):not([type=radio]) { min-height:46px; }
     button { border:1px solid var(--field); border-radius:4px; background:white; color:var(--ink); font-weight:600; padding:8px 14px; cursor:pointer; touch-action:manipulation; }
     button:hover:not(:disabled) { background:var(--pale); }
@@ -79,6 +80,7 @@
     .message-settings textarea { margin-top:5px; resize:vertical; }
     .adjust { border-top:1px solid var(--line); margin-top:10px; }
     .adjust summary { cursor:pointer; color:var(--accent); font-weight:600; padding:12px 0; min-height:46px; }
+    .summary-note { display:block; color:var(--muted); font-size:13px; font-weight:400; margin-left:1.1em; }
     .preview summary { cursor:pointer; color:var(--accent); font-weight:600; padding:6px 0; }
     .preview pre { white-space:pre-wrap; overflow-wrap:anywhere; font-family:inherit; font-size:14px; background:white; border:1px solid var(--line); border-radius:4px; padding:12px; margin:6px 0 0; }
     #status { min-height:24px; margin:12px 0 0; }
@@ -100,7 +102,7 @@
   <p id="status" class="help" role="status" aria-live="polite"></p>
   <section class="panel" aria-labelledby="members-title">
     <div class="heading"><h2 id="members-title">1. メンバー</h2></div>
-    <p class="help rank-note"><strong>ランク</strong>は支払いの多さの段階です。<strong>1がいちばん多く払い</strong>、数字が大きいほど少なくなります（1〜5）。役職や年次の順に、上の人ほど小さい数字にしてください。同じ立場の人は同じランクにします。</p>
+    <p class="help rank-note"><strong>ランク</strong>は支払いの多さの段階です。<strong>1がいちばん多く払い</strong>、数字が大きいほど少なくなります（1〜7）。役職や年次の順に、上の人ほど小さい数字にしてください。同じ立場の人は同じランクにします。</p>
     <div class="member member-head" aria-hidden="true"><span>名前（空欄でもOK）</span><span>ランク</span><span>幹事</span><span></span></div>
     <div id="members"></div>
     <button type="button" class="wide" id="add-member">＋ メンバーを追加</button>
@@ -151,6 +153,7 @@
   'use strict';
   const STRENGTHS = Object.freeze({ equal: 0, weak: 5, medium: 10, strong: 20 });
   const MAX_AMOUNT = 999999999;
+  const MAX_RANK = 7;
   function check(condition, message) {
     if (!condition) throw new Error(message);
   }
@@ -159,14 +162,14 @@
     const ids = new Set();
     members.forEach(member => {
       check(member && typeof member.id === 'string' && member.id.length > 0 && !ids.has(member.id), 'メンバーIDが不正です。');
-      check(Number.isInteger(member.rank) && member.rank >= 1 && member.rank <= 5, 'ランクは1〜5で指定してください。');
+      check(Number.isInteger(member.rank) && member.rank >= 1 && member.rank <= MAX_RANK, `ランクは1〜${MAX_RANK}で指定してください。`);
       ids.add(member.id);
     });
   }
   // 重みを200倍した整数で扱い、100円の境界で浮動小数点の誤差を避ける。
   function weightUnits(rank, maxRank, strength) {
     check(typeof strength === 'string' && Object.hasOwn(STRENGTHS, strength), '傾斜の強さが不正です。');
-    check(Number.isInteger(maxRank) && maxRank >= 1 && maxRank <= 5 && Number.isInteger(rank) && rank >= 1 && rank <= maxRank, 'ランクが不正です。');
+    check(Number.isInteger(maxRank) && maxRank >= 1 && maxRank <= MAX_RANK && Number.isInteger(rank) && rank >= 1 && rank <= maxRank, 'ランクが不正です。');
     return 200 + STRENGTHS[strength] * (maxRank + 1 - 2 * rank);
   }
   function getWeight(rank, maxRank, strength) {
@@ -187,7 +190,7 @@
     const adjustments = round.adjustments === undefined ? {} : round.adjustments;
     check(adjustments !== null && typeof adjustments === 'object' && !Array.isArray(adjustments), '微調整が不正です。');
     Object.entries(adjustments).forEach(([rank, value]) => {
-      check(/^[1-5]$/.test(rank) && Number.isSafeInteger(value) && value % 100 === 0 && Math.abs(value) <= MAX_AMOUNT, '微調整はランクごとに100円単位で指定してください。');
+      check(/^[1-9]$/.test(rank) && Number(rank) <= MAX_RANK && Number.isSafeInteger(value) && value % 100 === 0 && Math.abs(value) <= MAX_AMOUNT, '微調整はランクごとに100円単位で指定してください。');
     });
     const weightSum = participants.reduce((sum, m) => sum + weightUnits(m.rank, maxRank, round.strength), 0);
     const baseAmounts = {}, rankCounts = {};
@@ -258,7 +261,7 @@
       ]
     };
   }
-  return Object.freeze({ STRENGTHS, MAX_AMOUNT, getWeight, calculateRound, canAdjustRound, calculateSettlement, defaultName, createExample });
+  return Object.freeze({ STRENGTHS, MAX_AMOUNT, MAX_RANK, getWeight, calculateRound, canAdjustRound, calculateSettlement, defaultName, createExample });
 });
 </script>
 <script>
@@ -284,7 +287,7 @@ function parseState(raw) {
   const saved = JSON.parse(raw);
   if (!isPlainObject(saved) || saved.version !== 1 || !Array.isArray(saved.members) || !saved.members.length || !Array.isArray(saved.rounds)) throw Error();
   const members = saved.members.map(m => {
-    if (!isPlainObject(m) || typeof m.id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(m.id) || typeof m.name !== 'string' || m.name.length > 80 || !Number.isInteger(m.rank) || m.rank < 1 || m.rank > 5) throw Error();
+    if (!isPlainObject(m) || typeof m.id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(m.id) || typeof m.name !== 'string' || m.name.length > 80 || !Number.isInteger(m.rank) || m.rank < 1 || m.rank > C.MAX_RANK) throw Error();
     return { id:m.id, name:m.name, rank:m.rank };
   });
   const ids = new Set(members.map(m => m.id));
@@ -295,7 +298,7 @@ function parseState(raw) {
     if (r.adjustments !== undefined && !isPlainObject(r.adjustments)) throw Error();
     const adjustments = {};
     for (const [rank, value] of Object.entries(r.adjustments || {})) {
-      if (!/^[1-5]$/.test(rank) || !Number.isSafeInteger(value) || value % 100 !== 0 || Math.abs(value) > C.MAX_AMOUNT) throw Error();
+      if (!/^[1-9]$/.test(rank) || Number(rank) > C.MAX_RANK || !Number.isSafeInteger(value) || value % 100 !== 0 || Math.abs(value) > C.MAX_AMOUNT) throw Error();
       adjustments[rank] = value;
     }
     // 回の名前がない旧データは、保存時点の並び順で名付ける。
@@ -407,7 +410,7 @@ function renderMembers() {
   $('members').innerHTML = state.members.map((m, i) => `
     <div class="member" data-member="${m.id}">
       <label><span class="sr-only">${i + 1}人目の名前</span><input data-field="name" maxlength="80" placeholder="${C.defaultName(i)}" value="${escapeHtml(m.name)}" autocomplete="off"></label>
-      <label><span class="sr-only">${i + 1}人目のランク</span><select data-field="rank">${[1,2,3,4,5].map(rank => `<option value="${rank}" ${m.rank === rank ? 'selected' : ''}>${rank}</option>`).join('')}</select></label>
+      <label><span class="sr-only">${i + 1}人目のランク</span><select data-field="rank">${Array.from({ length:C.MAX_RANK }, (_, i) => i + 1).map(rank => `<option value="${rank}" ${m.rank === rank ? 'selected' : ''}>${rank}</option>`).join('')}</select></label>
       <label class="organizer"><span class="sr-only">${i + 1}人目を幹事にする</span><input type="radio" name="organizer" data-field="organizer" ${state.organizerId === m.id ? 'checked' : ''}></label>
       <button type="button" class="delete" data-action="remove-member" aria-label="${i + 1}人目（${escapeHtml(memberName(m))}）を削除" ${state.members.length === 1 ? 'disabled' : ''}>削除</button>
     </div>`).join('');
@@ -468,7 +471,7 @@ function refreshCalculated() {
       target.innerHTML = `<p class="success">✓ ${yen(result.total)} ／ 請求額と一致</p>
         <p class="help">差額担当：${escapeHtml(memberName(bearer))}　支払 ${yen(bearerPays)}（ランク${bearer.rank}の金額 ${yen(bearerBase)} ＋ 差額 ${yen(bearerPays - bearerBase)}）</p>
         ${adjustmentSummary(r, bearer)}
-        <details class="adjust" data-adjust-for="${r.id}" ${openAdjustments.has(r.id) ? 'open' : ''}><summary>ランクごとの金額・微調整${hasAdjustments(r) ? '（調整中）' : ''}</summary>
+        <details class="adjust" data-adjust-for="${r.id}" ${openAdjustments.has(r.id) ? 'open' : ''}><summary>ランクごとの金額・微調整${hasAdjustments(r) ? '（調整中）' : ''}<span class="summary-note">各ランクの1人あたりの金額を、100円単位で増やしたり減らしたりできます。</span></summary>
         <div aria-label="ランク別の微調整">${ranks.map(rank => {
           const adjustment = r.adjustments[rank] || 0;
           return `<div class="adjust-row"><div><strong>ランク${rank}</strong><span class="adjust-value">${yen(result.rankAmounts[rank])} / 人<br>調整 ${adjustment > 0 ? '+' : ''}${yen(adjustment)}</span></div>
@@ -610,7 +613,6 @@ $('rounds').addEventListener('click', event => {
 $('add-round').addEventListener('click', () => {
   state.rounds.push({ id:uid('r'), name:nextRoundName(), amount:'', participantIds:state.members.map(m => m.id), strength:state.defaultStrength, adjustments:{} });
   changed('全員が参加する回を追加しました。');
-  $('rounds').lastElementChild.querySelector('[data-field="amount"]').focus();
 });
 $('apply-strength').addEventListener('click', () => {
   state.rounds.forEach(r => { r.strength = state.defaultStrength; });

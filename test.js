@@ -136,10 +136,20 @@ test('余りの配分：ランク全員に配れないときと、上位ラン�
   // 余り201円ならランク1の2人に＋100、残り1円を差額担当（ランク1のa）が持つ。
   assert.deepEqual(calc.calculateRound(members, 'o', { amount: 1101, strength: 'equal', participantIds: ['a', 'b', 'c'] }).amounts, { a: 401, b: 400, c: 300 });
 });
-test('ランク1〜5・全強度・参加パターンで請求額一致と下限を維持', () => {
-  const members = [1, 2, 3, 4, 5].map(rank => ({ id: String(rank), rank }));
+test('ランクは1〜7。6・7の重みと、8以上の拒否', () => {
+  assert.equal(calc.MAX_RANK, 7);
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 7].map(r => calc.getWeight(r, 7, 'medium')), [1.3, 1.2, 1.1, 1, 0.9, 0.8, 0.7]);
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 7].map(r => calc.getWeight(r, 7, 'strong')), [1.6, 1.4, 1.2, 1, 0.8, 0.6, 0.4]);
+  assert.deepEqual([1, 6].map(r => calc.getWeight(r, 6, 'weak')), [1.125, 0.875]);
+  assert.throws(() => calc.calculateRound([{ id: 'a', rank: 8 }], 'a', round), /1〜7/);
+  const seven = [{ id: 'a', rank: 1 }, { id: 'b', rank: 7 }];
+  assert.doesNotThrow(() => calc.calculateRound(seven, 'a', { ...round, adjustments: { 7: -100 } }));
+  assert.throws(() => calc.calculateRound(seven, 'a', { ...round, adjustments: { 8: -100 } }), /微調整/);
+});
+test('ランク1〜7・全強度・参加パターンで請求額一致と下限を維持', () => {
+  const members = [1, 2, 3, 4, 5, 6, 7].map(rank => ({ id: String(rank), rank }));
   for (const strength of Object.keys(calc.STRENGTHS)) {
-    for (let mask = 1; mask < 32; mask++) {
+    for (let mask = 1; mask < 128; mask++) {
       for (const amount of [0, 99, 100, 1001, 35038, 999999999]) {
         const r = { amount, strength, participantIds: members.filter((_, i) => mask & (1 << i)).map(m => m.id) };
         const computed = calc.calculateRound(members, '3', r);
