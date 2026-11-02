@@ -72,6 +72,11 @@
     tfoot th, tfoot td { border-bottom:0; background:#f1f6f2; }
     .sum { font-size:24px; font-weight:800; color:var(--green); }
     #copy-text { min-height:260px; resize:vertical; margin-top:10px; }
+    .message-settings { display:grid; gap:12px; margin:20px 0 14px; }
+    .message-settings legend { font-size:16px; }
+    .message-settings textarea { margin-top:5px; resize:vertical; }
+    .preview summary { cursor:pointer; color:var(--green); font-weight:700; padding:6px 0; }
+    .preview pre { white-space:pre-wrap; overflow-wrap:anywhere; font-family:inherit; font-size:14px; background:var(--pale); border-radius:10px; padding:12px; margin:6px 0 0; }
     #status { min-height:24px; margin:0 0 12px; }
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     [hidden] { display:none !important; }
@@ -112,6 +117,13 @@
   <section class="panel" aria-labelledby="results-title">
     <div class="heading"><h2 id="results-title">3. 精算結果</h2><a href="#rounds-title">入力に戻る ↑</a></div>
     <div id="results"></div>
+    <fieldset id="message-settings" class="message-settings"><legend>LINEの文面</legend>
+      <label class="field">はじめのあいさつ<textarea data-message="greeting" rows="2" maxlength="200"></textarea></label>
+      <label class="field">お支払い方法（空欄なら載せません）<input data-message="payment" maxlength="100" placeholder="例：PayPay（ID：xxxx）または現金" autocomplete="off"></label>
+      <label class="field">お支払い期限（空欄なら載せません）<input data-message="deadline" maxlength="50" placeholder="例：11月15日（金）" autocomplete="off"></label>
+      <label class="field">むすびのことば<textarea data-message="closing" rows="2" maxlength="200"></textarea></label>
+      <details class="preview"><summary>送る文面を確認する</summary><pre id="line-preview"></pre></details>
+    </fieldset>
     <button type="button" class="primary wide" id="copy" disabled>LINE用の文面をコピー</button>
     <p id="copy-status" class="help" role="status" aria-live="polite"></p>
     <div id="copy-fallback" hidden>
@@ -254,9 +266,12 @@ const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({ '&':'&amp;
 const yen = value => value.toLocaleString('ja-JP') + '円';
 const strengthLabels = { equal:'平等', weak:'弱', medium:'中', strong:'強' };
 const uid = prefix => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
+// LINEの文面に入れる、幹事からのあいさつ・支払い案内。
+const MESSAGE_LIMITS = { greeting:200, payment:100, deadline:50, closing:200 };
+const defaultMessage = () => ({ greeting:'本日はお疲れさまでした。\n精算のご連絡です。', payment:'', deadline:'', closing:'お手数をおかけしますが、よろしくお願いいたします。' });
 function initialState() {
   const members = [1, 2, 3].map(rank => ({ id:uid('m'), name:'', rank }));
-  return { version:1, members, organizerId:members[2].id, defaultStrength:'medium', rounds:[{ id:uid('r'), name:'1次会', amount:'', participantIds:members.map(m => m.id), strength:'medium', adjustments:{} }] };
+  return { version:1, members, organizerId:members[2].id, defaultStrength:'medium', message:defaultMessage(), rounds:[{ id:uid('r'), name:'1次会', amount:'', participantIds:members.map(m => m.id), strength:'medium', adjustments:{} }] };
 }
 const isPlainObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 // 保存データを検証して状態に変換する。不正なら例外。
@@ -283,7 +298,17 @@ function parseState(raw) {
   });
   if (new Set(rounds.map(r => r.id)).size !== rounds.length) throw Error();
   if (saved.defaultStrength !== undefined && (typeof saved.defaultStrength !== 'string' || !Object.hasOwn(strengthLabels, saved.defaultStrength))) throw Error();
-  return { version:1, members, organizerId:saved.organizerId, defaultStrength:saved.defaultStrength ?? 'medium', rounds };
+  const message = defaultMessage();
+  if (saved.message !== undefined) {
+    if (!isPlainObject(saved.message)) throw Error();
+    for (const [key, limit] of Object.entries(MESSAGE_LIMITS)) {
+      const value = saved.message[key];
+      if (value === undefined) continue;
+      if (typeof value !== 'string' || value.length > limit) throw Error();
+      message[key] = value;
+    }
+  }
+  return { version:1, members, organizerId:saved.organizerId, defaultStrength:saved.defaultStrength ?? 'medium', message, rounds };
 }
 // 計算できなくなる保存済みの微調整は、その回だけ解除する。
 function dropInvalidAdjustments(target) {
@@ -451,9 +476,11 @@ function refreshCalculated() {
       <tfoot><tr><th scope="row">請求額</th>${settlement.rounds.map(r => `<td>${yen(r.total)}</td>`).join('')}<td>${yen(settlement.grandTotal)}</td></tr></tfoot></table></div>
       ${settlement.rounds.map((r, i) => `<div class="success">✓ ${escapeHtml(roundName(state.rounds[i]))}：${yen(r.total)} ／ 請求額と一致</div>`).join('')}`;
     $('copy').disabled = false;
+    $('line-preview').textContent = lineText();
   } catch (_) {
     settlement = null;
     $('copy').disabled = true;
+    $('line-preview').textContent = '精算結果が出ると、ここに文面が表示されます。';
     $('results').innerHTML = state.rounds.length
       ? '<p class="help">各回の請求額と参加者を確認すると、全員の精算結果がここに表示されます。</p>'
       : '<p class="help">回を追加すると、全員の精算結果がここに表示されます。</p>';
@@ -465,7 +492,10 @@ function renderUndo() {
 }
 function clearUndo() { if (undoState) { undoState = null; renderUndo(); } }
 const snapshot = () => JSON.parse(JSON.stringify(state));
-function renderAll() { $('bulk-strength').value = state.defaultStrength; renderMembers(); renderRounds(); refreshCalculated(); }
+function renderMessage() {
+  document.querySelectorAll('[data-message]').forEach(el => { if (el.value !== state.message[el.dataset.message]) el.value = state.message[el.dataset.message]; });
+}
+function renderAll() { $('bulk-strength').value = state.defaultStrength; renderMessage(); renderMembers(); renderRounds(); refreshCalculated(); }
 // 描き直しで消える要素にフォーカスがあるとき、描き直し後に同じ役割の要素を探すためのセレクタ。
 function focusSelector(el) {
   const owner = el && el.closest && el.closest('[data-member],[data-round]');
@@ -586,7 +616,7 @@ $('load-example').addEventListener('click', () => {
   if (exampleUndo) {
     state = exampleUndo; exampleUndo = null; $('load-example').textContent = '例を読み込む'; changed('例の読み込み前の入力に戻しました。');
   } else {
-    exampleUndo = snapshot(); state = { ...C.createExample(), defaultStrength:'medium' };
+    exampleUndo = snapshot(); state = { ...C.createExample(), defaultStrength:'medium', message:{ ...state.message } };
     $('load-example').textContent = '例を読み込む前に戻す'; changed('例1を表示中です。例の表示中は保存しないので、ページを閉じても元の入力は残ります。');
   }
 });
@@ -601,18 +631,35 @@ window.addEventListener('storage', event => {
   renderAll();
   $('status').textContent = '別のタブでの変更を読み込みました。';
 });
+// 幹事が参加者に送る、丁寧な口調の精算連絡。空欄の項目は省く。
 function lineText() {
-  const names = state.members.map(memberName);
+  const { greeting, payment, deadline, closing } = state.message;
   const roundNames = state.rounds.map(roundName);
-  const lines = ['【飲み会の精算】', ''];
-  state.members.forEach((m, i) => {
-    lines.push(`${names[i]}${m.id === state.organizerId ? '（幹事）' : ''}：合計 ${yen(settlement.totals[m.id])}`);
-    lines.push('  ' + settlement.rounds.map((r, n) => `${roundNames[n]} ${Object.hasOwn(r.amounts, m.id) ? yen(r.amounts[m.id]) : '不参加'}`).join(' / '));
+  const lines = [];
+  if (greeting.trim()) lines.push(greeting.trim(), '');
+  state.members.forEach(m => {
+    const attended = settlement.rounds.map((r, n) => Object.hasOwn(r.amounts, m.id) ? `${roundNames[n]} ${yen(r.amounts[m.id])}` : null).filter(Boolean);
+    if (!attended.length) return;
+    const who = m.id === state.organizerId ? `${memberName(m)}（幹事）` : `${memberName(m)}さん`;
+    lines.push(`${who}　${yen(settlement.totals[m.id])}` + (settlement.rounds.length > 1 ? `（${attended.join('／')}）` : ''));
   });
-  lines.push('', ...settlement.rounds.map((r, i) => `${roundNames[i]}：請求額 ${yen(r.total)}（一致）／差額担当 ${memberName(state.members.find(m => m.id === r.bearerId))}`));
-  lines.push(`全回合計：${yen(settlement.grandTotal)}`);
+  lines.push('', settlement.rounds.length > 1
+    ? `お会計：${settlement.rounds.map((r, n) => `${roundNames[n]} ${yen(r.total)}`).join('／')}（合計 ${yen(settlement.grandTotal)}）`
+    : `お会計：${yen(settlement.grandTotal)}`);
+  const info = [];
+  if (payment.trim()) info.push(`【お支払い方法】${payment.trim()}`);
+  if (deadline.trim()) info.push(`【お支払い期限】${deadline.trim()}${/まで$/.test(deadline.trim()) ? '' : 'まで'}`);
+  if (info.length) lines.push('', ...info);
+  if (closing.trim()) lines.push('', closing.trim());
   return lines.join('\n');
 }
+$('message-settings').addEventListener('input', event => {
+  const key = event.target.dataset.message;
+  if (!key) return;
+  state.message[key] = event.target.value;
+  clearUndo(); save();
+  if (settlement) $('line-preview').textContent = lineText();
+});
 $('copy').addEventListener('click', async () => {
   if (!settlement) return;
   const text = lineText(), copiedRevision = revision;
