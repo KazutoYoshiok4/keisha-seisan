@@ -44,9 +44,9 @@
     button.primary { background:var(--accent); color:white; border-color:var(--accent); box-shadow:0 3px 0 var(--accent-dark); }
     button.primary:hover:not(:disabled) { background:var(--accent-dark); }
     button:disabled { color:#a89e93; background:var(--pale); border-color:var(--line); box-shadow:none; cursor:default; }
-    button.delete { color:var(--red); background:transparent; border-color:transparent; padding:8px 6px; white-space:nowrap; font-weight:600; font-size:14px; }
+    button.delete { color:var(--red); background:#FFF5F3; border-color:#F0C9C2; padding:8px 10px; white-space:nowrap; font-weight:600; font-size:14px; }
     button.delete:hover:not(:disabled) { background:#FBE4E0; }
-    button.delete:disabled { background:transparent; color:#c9bfb4; }
+    button.delete:disabled { background:var(--pale); border-color:var(--line); color:#c9bfb4; }
     input:not([type=checkbox]):not([type=radio]), select, textarea { width:100%; border:1px solid var(--field); border-radius:10px; padding:8px 12px; background:var(--surface); color:var(--ink); }
     input:not([type=checkbox]):not([type=radio]):focus, select:focus, textarea:focus { border-color:var(--accent); }
     input[type=checkbox], input[type=radio] { width:20px; height:20px; accent-color:var(--accent); flex-shrink:0; margin:0; }
@@ -150,16 +150,23 @@
     .guide li strong { display:block; font-family:var(--round); }
     .guide h3 { font-size:16px; margin-top:22px; color:var(--accent-dark); }
     .guide p { margin:4px 0 12px; }
+    .feature { background:#FFF6DC; border:2px solid var(--gold); border-radius:14px; padding:14px 16px 4px; margin:8px 0 24px; }
+    .feature h3 { margin-top:0 !important; color:#8a5a00 !important; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .badge { font-family:system-ui,sans-serif; font-size:12px; font-weight:700; background:var(--gold); color:var(--ink); border-radius:999px; padding:2px 10px; }
+    .terms-title { color:var(--ink) !important; }
+    .terms { margin:8px 0 0; }
+    .terms dt { font-weight:700; margin-top:12px; padding-left:10px; border-left:3px solid var(--accent); line-height:1.4; }
+    .terms dd { margin:4px 0 0 13px; color:var(--muted); font-size:14px; }
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     [hidden] { display:none !important; }
-    @media(max-width:480px) { main { padding:18px 16px 56px; } #members { padding:2px 10px; } .member-head { padding:0 11px 4px; } .round { padding:14px 12px; } .member { gap:6px; grid-template-columns:minmax(0,1fr) 64px 44px 44px; } .member button { padding:8px 0; } .adjust-row { gap:5px; } .adjust-row button { min-width:76px; } th,td { padding:10px 9px; } .guide { padding:16px; } }
+    @media(max-width:480px) { main { padding:18px 16px 56px; } #members { padding:2px 10px; } .member-head { padding:0 11px 4px; } .round { padding:14px 12px; } .member { gap:6px; grid-template-columns:minmax(0,1fr) 64px 44px 44px; } .member button { padding:8px 0; font-size:13px; } .adjust-row { gap:5px; } .adjust-row button { min-width:76px; } th,td { padding:10px 9px; } .guide { padding:16px; } }
   </style>
 </head>
 <body>
 <main>
   <header id="top">
     <div class="brand"><svg class="logo" viewBox="0 0 96 96" aria-hidden="true"><rect width="96" height="96" rx="24" fill="#C2471A"/><g transform="rotate(-12 46 50)"><path d="M29 19H63Q66 19 66 22V72l-2.5-4-2.5 4-2.5-4-2.5 4-2.5-4-2.5 4-2.5-4-2.5 4-2.5-4-2.5 4-2.5-4-2.5 4-2.5-4-2.5 4-2.5-4-2.5 4V22Q26 19 29 19Z" fill="#fff"/><rect x="33" y="28" width="22" height="5" rx="2.5" fill="#F2B33D"/><rect x="33" y="39" width="15" height="3.5" rx="1.75" fill="#F3D3C2"/><rect x="33" y="47" width="24" height="3.5" rx="1.75" fill="#F3D3C2"/><rect x="33" y="55" width="12" height="3.5" rx="1.75" fill="#F3D3C2"/></g><path d="M71 25q7 6 6 16" stroke="#F2B33D" stroke-width="4.5" fill="none" stroke-linecap="round"/><path d="M78 17q11 9 9 25" stroke="#F2B33D" stroke-width="4.5" fill="none" stroke-linecap="round" opacity=".55"/></svg><div><h1>バイバイ精算</h1><p class="tagline">傾斜つき割り勘・飲み会の幹事に</p></div></div>
-    <p class="lead">役職や年次に合わせて、傾斜をつけて割り勘するツールです。<span class="nw">1次会・2次会</span>ごとに参加者と傾斜を変えられるので、途中から来た人や先に帰った人がいても、そのまま計算できます。金額は<span class="nw">100円</span>単位でそろえ、LINEで送る文面まで作れます。登録もアプリも不要です。</p>
+    <p class="lead">役職や年次に合わせて、傾斜をつけて割り勘するツールです。<br><span class="nw">1次会・2次会</span>ごとに参加者と傾斜を変えられるので、途中から来た人や先に帰った人がいても、そのまま計算できます。金額は<span class="nw">100円</span>単位でそろえ、LINEで送る文面まで作れます。登録もアプリも不要です。</p>
     <div class="header-actions"><a class="button-link" href="#guide">使い方を見る</a><button type="button" id="load-example">入力例で試す</button></div>
   </header>
   <div class="tabs" role="group" aria-label="モードの切り替え">
@@ -225,14 +232,20 @@
       <li><strong>お会計を入れる</strong>1次会、2次会…と回を足して、請求額を入れます。来なかった人はチェックを外します。傾斜は「平等・弱・中・強」から選べます。</li>
       <li><strong>LINEで送る</strong>「精算」に1人ずつの金額と送る文面が出ます。「LINEで送る」かコピーして、グループに貼り付けます。支払い方法や期限は「文面を編集」で入れられます。</li>
     </ol>
-    <h3>端数と差額</h3>
-    <p>1人あたりの金額は100円単位で切り捨てます。余りは上のランクから順に100円ずつ配り、それでも残った100円未満は「差額を持つ人」が払います。ふだんは幹事ですが、回ごとにほかの人にも変えられます。下のランクの人が上のランクより多く払うことはありません。</p>
-    <h3>微調整</h3>
-    <p>各回の「ランクごとの金額・微調整」を開くと、ランクごとの1人あたりの金額を100円単位で増やしたり減らしたりできます。増減した分は、差額を持つ人の支払いで合わせます。人数・ランク・幹事・請求額・参加者・傾斜・差額を持つ人を変えると、その回の微調整はリセットされます。</p>
-    <h3>抽選モード</h3>
-    <p>上のタブで切り替えます。いつもの金額の0.5〜1.5倍の範囲で、1人ずつランダムに金額を決めます。合計は請求額のままです。全部の回をまとめて回すか、回ごとに回すかを選べます。抽選すると、送る文面も抽選の金額になります。</p>
-    <h3>保存について</h3>
-    <p>入力はこのブラウザに自動で保存され、端末の外には送信しません。iPhoneのSafariでは、しばらく開かないと消えることがあるので、ホーム画面に追加しておくと安心です。「入力例で試す」で入力例を表示している間は保存しません。</p>
+    <div class="feature">
+      <h3>抽選モード <span class="badge">お楽しみ機能</span></h3>
+      <p>画面上のタブを「抽選モード」に切り替えると、払う金額をくじで決められます。1人ずつ、いつもの金額の0.5〜1.5倍の範囲でランダムに決まります（いつも5,000円の人なら、2,500〜7,500円のどこか）。合計は請求額のままなので、お店への支払いは変わりません。</p>
+      <p>全部の回をまとめて回すか、1次会・2次会と回ごとに回すかを選べます。抽選すると、送る文面も抽選の金額になります。通常モードに戻せば、いつもの金額の文面に戻ります。</p>
+    </div>
+    <h3 class="terms-title">補足：ことばの説明</h3>
+    <p class="help">読まなくても使えます。気になったときにどうぞ。</p>
+    <dl class="terms">
+      <dt>傾斜</dt><dd>役職や年次によって、払う金額に差をつけることです。「平等」は全員同じ、「弱・中・強」の順に差が大きくなります。「中」なら、ランクが1つ違うと1人あたりの金額が約1割違います。</dd>
+      <dt>ランク</dt><dd>払う金額の多さの段階です。1がいちばん多く払い、数字が大きいほど少なくなります（1〜7）。</dd>
+      <dt>端数と差額</dt><dd>1人あたりの金額は100円単位で切り捨てます。余りは上のランクから順に100円ずつ配り、それでも残った100円未満を「差額」と呼びます。差額は「差額を持つ人」が払います。ふだんは幹事ですが、回ごとにほかの人にも変えられます。下のランクの人が上のランクより多く払うことはありません。</dd>
+      <dt>微調整</dt><dd>各回の「ランクごとの金額・微調整」で、ランクごとの1人あたりの金額を100円単位で増やしたり減らしたりできます。増減した分は、差額を持つ人の支払いで合わせます。人数・ランク・幹事・請求額・参加者・傾斜・差額を持つ人を変えると、その回の微調整はリセットされます。</dd>
+      <dt>保存</dt><dd>入力はこのブラウザに自動で保存され、端末の外には送信しません。iPhoneのSafariでは、しばらく開かないと消えることがあるので、ホーム画面に追加しておくと安心です。「入力例で試す」で入力例を表示している間は保存しません。</dd>
+    </dl>
     <a class="button-link wide-link" href="#top">ツールに戻る ↑</a>
   </section>
   <div id="undo-bar" class="toast" hidden><span id="undo-message" role="status" aria-live="polite"></span><button type="button" id="undo">取り消す</button></div>
