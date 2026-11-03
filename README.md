@@ -108,7 +108,7 @@
 - `ogp.png`：LINEやXでURLを共有したときのプレビュー画像（1200×630）。
 - `terms.html`・`privacy.html`・`about.html`：利用規約・プライバシーポリシー・運営者とお問い合わせ（窓口はGoogleフォーム。フォームは `tools/create-contact-form.gs` で作成）。共通の見た目は `sub.css`。
 - `404.html`：ページが見つからないとき。
-- ドメインを移すときは、`index.html` の canonical・og:url・og:image の絶対URLと、`404.html` の `/keisha-seisan/` を書き換えます。保存データ（localStorage）はURLのドメインごとに分かれるため、移行前の入力は引き継がれません。
+- `CNAME`：公開ドメイン（byebye-seisan.com）。GitHub Pagesで公開し、DNSはCloudflare（プロキシなし）。旧URL（kazutoyoshiok4.github.io/keisha-seisan/）は新ドメインへ自動で転送されます。ドメインを変えるときは、`index.html` の canonical・og:url・og:image の絶対URLもあわせて書き換えます。保存データ（localStorage）はドメインごとに分かれるため、旧URLで保存した入力は引き継がれません。
 - `apple-touch-icon.png`：iPhoneでホーム画面に追加したときのアイコン（180×180）。
 - `README.md`：この説明書。
 
@@ -120,4 +120,4 @@ node test.js
 
 ## v0の範囲
 
-集金済み管理、飲酒の有無、複数人の立て替え、端末間同期は未実装です。公開・デプロイは行っていません。スマホでのローカルHTMLの開き方やクリップボードの許可はOS・ブラウザに依存します。保存できない場合や自動コピーできない場合は、画面内の案内・手動コピーで継続できます。
+集金済み管理、飲酒の有無、複数人の立て替え、端末間同期は未実装です。公開先は https://byebye-seisan.com/ です。スマホでのローカルHTMLの開き方やクリップボードの許可はOS・ブラウザに依存します。保存できない場合や自動コピーできない場合は、画面内の案内・手動コピーで継続できます。
