@@ -38,21 +38,21 @@ test('段階数は全メンバーの最大ランク。強さごとの重み', ()
 });
 const pair = [{ id: 'a', rank: 1 }, { id: 'b', rank: 2 }];
 const round = { amount: 1000, strength: 'equal', participantIds: ['a', 'b'], adjustments: {} };
-test('差額担当者の下限：他ランクを増やす操作を禁止し、減らす操作を許可', () => {
+test('端数を持つ人の下限：他ランクを増やす操作を禁止し、減らす操作を許可', () => {
   assert.equal(calc.canAdjustRound(pair, 'a', round, 2, 100), false);
   assert.equal(calc.canAdjustRound(pair, 'a', round, 2, -100), true);
   assert.throws(() => calc.calculateRound(pair, 'a', { ...round, adjustments: { 2: 100 } }), /下回ります/);
 });
-test('差額担当者自身のランクにも調整後の下限を適用（同ランクの他人がいなくても）', () => {
+test('端数を持つ人自身のランクにも調整後の下限を適用（同ランクの他人がいなくても）', () => {
   assert.equal(calc.canAdjustRound(pair, 'a', round, 1, 100), false);
   const sameRank = pair.map(m => ({ ...m, rank: 1 }));
   assert.equal(calc.canAdjustRound(sameRank, 'a', round, 1, 100), false);
   assert.equal(calc.canAdjustRound(sameRank, 'a', round, 1, -100), true);
   assert.deepEqual(calc.calculateRound(sameRank, 'a', { ...round, adjustments: { 1: -100 } }).amounts, { b: 400, a: 600 });
 });
-test('0円未満の調整を禁止。差額担当者の下限ぴったりは許可', () => {
+test('0円未満の調整を禁止。端数を持つ人の下限ぴったりは許可', () => {
   assert.equal(calc.canAdjustRound(pair, 'a', { ...round, amount: 0 }, 2, -100), false);
-  // 各300円・余り100円（ランク1の2人には配れず、ランク2に配るとランク1を追い越すので差額担当aが持つ）。
+  // 各300円・余り100円（ランク1の2人には配れず、ランク2に配るとランク1を追い越すので端数を持つ人aが持つ）。
   const trio = [{ id: 'a', rank: 1 }, { id: 'b', rank: 1 }, { id: 'c', rank: 2 }];
   const trioRound = { ...round, amount: 1000, participantIds: ['a', 'b', 'c'] };
   assert.equal(calc.canAdjustRound(trio, 'a', trioRound, 2, 100), true);
@@ -68,7 +68,7 @@ test('幹事不参加：最上位ランク・同順位はメンバー順。参�
   assert.equal(calc.calculateRound(members, 'o', { ...r, bearerId: 'c' }).amounts.c, 401);
   assert.throws(() => calc.calculateRound(members, 'o', { ...r, bearerId: 'o' }), /参加者から/);
 });
-test('幹事参加：未指定なら幹事が差額担当。「その他」で指定した参加者に変更できる', () => {
+test('幹事参加：未指定なら幹事が端数を持つ人。「その他」で指定した参加者に変更できる', () => {
   const members = [{ id: 'o', rank: 3 }, { id: 'a', rank: 1 }];
   const r = { amount: 1050, strength: 'equal', participantIds: ['o', 'a'] };
   assert.equal(calc.calculateRound(members, 'o', r).bearerId, 'o');
@@ -133,7 +133,7 @@ test('余りの配分：ランク全員に配れないときと、上位ラン�
   const members = [{ id: 'o', rank: 3 }, { id: 'a', rank: 1 }, { id: 'b', rank: 1 }, { id: 'c', rank: 2 }];
   // 平等・各300円（余り101円）。ランク1は2人で200円必要なので配らず、ランク2だけ＋100するとランク1を追い越すので配らない。
   assert.deepEqual(calc.calculateRound(members, 'o', { amount: 1001, strength: 'equal', participantIds: ['a', 'b', 'c'] }).amounts, { a: 401, b: 300, c: 300 });
-  // 余り201円ならランク1の2人に＋100、残り1円を差額担当（ランク1のa）が持つ。
+  // 余り201円ならランク1の2人に＋100、残り1円を端数を持つ人（ランク1のa）が持つ。
   assert.deepEqual(calc.calculateRound(members, 'o', { amount: 1101, strength: 'equal', participantIds: ['a', 'b', 'c'] }).amounts, { a: 401, b: 400, c: 300 });
 });
 test('ランクは1〜7。6・7の重みと、8以上の拒否', () => {

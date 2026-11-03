@@ -234,7 +234,7 @@
     </ol>
     <div class="feature">
       <h3>抽選モード <span class="badge">お楽しみ機能</span></h3>
-      <p>画面上のタブを「抽選モード」に切り替えると、払う金額をくじで決められます。1人ずつ、いつもの金額の0.5〜1.5倍の範囲でランダムに決まります（いつも5,000円の人なら、2,500〜7,500円のどこか）。合計は請求額のままなので、お店への支払いは変わりません。</p>
+      <p>画面上のタブを「抽選モード」に切り替えると、払う金額をくじで決められます。1人ずつ、いつもの金額の0.5〜1.5倍の範囲でランダムに決まります（いつも5,000円の人なら、2,500〜7,500円のどこか）。</p>
       <p>全部の回をまとめて回すか、1次会・2次会と回ごとに回すかを選べます。抽選すると、送る文面も抽選の金額になります。通常モードに戻せば、いつもの金額の文面に戻ります。</p>
     </div>
     <h3 class="terms-title">補足：ことばの説明</h3>
@@ -242,8 +242,8 @@
     <dl class="terms">
       <dt>傾斜</dt><dd>役職や年次によって、払う金額に差をつけることです。「平等」は全員同じ、「弱・中・強」の順に差が大きくなります。「中」なら、ランクが1つ違うと1人あたりの金額が約1割違います。</dd>
       <dt>ランク</dt><dd>払う金額の多さの段階です。1がいちばん多く払い、数字が大きいほど少なくなります（1〜7）。</dd>
-      <dt>端数と差額</dt><dd>1人あたりの金額は100円単位で切り捨てます。余りは上のランクから順に100円ずつ配り、それでも残った100円未満を「差額」と呼びます。差額は「差額を持つ人」が払います。ふだんは幹事ですが、回ごとにほかの人にも変えられます。下のランクの人が上のランクより多く払うことはありません。</dd>
-      <dt>微調整</dt><dd>各回の「ランクごとの金額・微調整」で、ランクごとの1人あたりの金額を100円単位で増やしたり減らしたりできます。増減した分は、差額を持つ人の支払いで合わせます。人数・ランク・幹事・請求額・参加者・傾斜・差額を持つ人を変えると、その回の微調整はリセットされます。</dd>
+      <dt>端数</dt><dd>1人あたりの金額は100円単位で切り捨てます。余りは上のランクから順に100円ずつ配り、それでも残った100円未満の端数は「端数を持つ人」が払います。ふだんは幹事ですが、回ごとにほかの人にも変えられます。下のランクの人が上のランクより多く払うことはありません。</dd>
+      <dt>微調整</dt><dd>各回の「ランクごとの金額・微調整」で、ランクごとの1人あたりの金額を100円単位で増やしたり減らしたりできます。増減した分は、端数を持つ人の支払いで合わせます。人数・ランク・幹事・請求額・参加者・傾斜・端数を持つ人を変えると、その回の微調整はリセットされます。</dd>
       <dt>保存</dt><dd>入力はこのブラウザに自動で保存され、端末の外には送信しません。iPhoneのSafariでは、しばらく開かないと消えることがあるので、ホーム画面に追加しておくと安心です。「入力例で試す」で入力例を表示している間は保存しません。</dd>
     </dl>
     <a class="button-link wide-link" href="#top">ツールに戻る ↑</a>
@@ -294,7 +294,7 @@
     const maxRank = Math.max(...members.map(m => m.rank));
     const bestRankMember = participants.reduce((best, m) => m.rank < best.rank ? m : best);
     const bearerId = round.bearerId === undefined || round.bearerId === null ? (ids.has(organizerId) ? organizerId : bestRankMember.id) : round.bearerId;
-    check(ids.has(bearerId), '差額を持つ人は参加者から選んでください。');
+    check(ids.has(bearerId), '端数を持つ人は参加者から選んでください。');
     const adjustments = round.adjustments === undefined ? {} : round.adjustments;
     check(adjustments !== null && typeof adjustments === 'object' && !Array.isArray(adjustments), '微調整が不正です。');
     Object.entries(adjustments).forEach(([rank, value]) => {
@@ -307,7 +307,7 @@
       rankCounts[m.rank] = (rankCounts[m.rank] || 0) + 1;
     });
     // 切り捨てで出た100円単位の余りは、上位ランクから順に「そのランク全員に＋100円」できる場合だけ配る。
-    // 上位ランクの金額を追い越す配り方はしない。配りきれない残りは差額担当者が持つ。
+    // 上位ランクの金額を追い越す配り方はしない。配りきれない残りは端数を持つ人が持つ。
     let remainder = round.amount - participants.reduce((sum, m) => sum + baseAmounts[m.rank], 0);
     const presentRanks = Object.keys(baseAmounts).map(Number).sort((a, b) => a - b);
     presentRanks.forEach((rank, i) => {
@@ -330,7 +330,7 @@
     });
     amounts[bearerId] = round.amount - otherTotal;
     const bearer = participants.find(m => m.id === bearerId);
-    check(amounts[bearerId] >= rankAmounts[bearer.rank], '差額を持つ人の金額が、同じランクの調整後の金額を下回ります。');
+    check(amounts[bearerId] >= rankAmounts[bearer.rank], '端数を持つ人の金額が、同じランクの調整後の金額を下回ります。');
     const total = Object.values(amounts).reduce((sum, value) => sum + value, 0);
     return { amounts, rankAmounts, bearerId, total, matches: total === round.amount, maxRank };
   }
@@ -542,7 +542,7 @@ function numericRound(round) {
 }
 const isBlankAmount = round => String(round.amount).trim() === '';
 function resetAdjustments(rounds = state.rounds) { rounds.forEach(r => { r.adjustments = {}; }); }
-// 差額担当の指定（r.bearerId）は「その他」で選んだ人だけを持つ。未指定なら幹事、幹事が不参加なら最上位ランクの人。
+// 端数を持つ人の指定（r.bearerId）は「その他」で選んだ人だけを持つ。未指定なら幹事、幹事が不参加なら最上位ランクの人。
 function reconcileBearers() {
   state.rounds.forEach(r => {
     if (r.bearerId !== undefined && (!r.participantIds.includes(r.bearerId) || r.bearerId === state.organizerId)) delete r.bearerId;
@@ -557,10 +557,10 @@ function bearerChoice(r) {
   if (!others.length && !organizerIn) return '';
   const isOther = r.bearerId !== undefined || !organizerIn;
   const selected = r.bearerId ?? (others.length ? bestRank(others).id : '');
-  return `<fieldset><legend>差額を持つ人<span id="bearer-diff-${r.id}"></span></legend><div class="bearer-choice">
+  return `<fieldset><legend>端数を持つ人<span id="bearer-diff-${r.id}"></span></legend><div class="bearer-choice">
     <label class="chip"><input type="radio" name="bearer-mode-${r.id}" data-field="bearer-mode" value="organizer" ${isOther ? '' : 'checked'} ${organizerIn ? '' : 'disabled'}><span>幹事（${escapeHtml(memberName(organizer))}）${organizerIn ? '' : '・不参加'}</span></label>
     <label class="chip"><input type="radio" name="bearer-mode-${r.id}" data-field="bearer-mode" value="other" ${isOther ? 'checked' : ''} ${others.length ? '' : 'disabled'}><span>その他</span></label>
-    ${others.length && isOther ? `<select data-field="bearer" aria-label="差額を持つ人を選ぶ">${others.map(m => `<option value="${m.id}" ${m.id === selected ? 'selected' : ''}>${escapeHtml(memberName(m))}（ランク${m.rank}）</option>`).join('')}</select>` : ''}
+    ${others.length && isOther ? `<select data-field="bearer" aria-label="端数を持つ人を選ぶ">${others.map(m => `<option value="${m.id}" ${m.id === selected ? 'selected' : ''}>${escapeHtml(memberName(m))}（ランク${m.rank}）</option>`).join('')}</select>` : ''}
   </div></fieldset>`;
 }
 function renderMembers() {
@@ -601,7 +601,7 @@ function renderRounds() {
     </article>`).join('');
 }
 const signedYen = value => (value > 0 ? '＋' : value < 0 ? '−' : '±') + yen(Math.abs(value));
-// 微調整で増減した分が、差額担当者の支払いにどう移ったかを示す。
+// 微調整で増減した分が、端数を持つ人の支払いにどう移ったかを示す。
 function adjustmentSummary(r, bearer) {
   const parts = Object.entries(r.adjustments).map(([rank, adj]) => {
     const count = roundParticipants(r).filter(m => m.rank === Number(rank) && m.id !== bearer.id).length;
@@ -609,7 +609,7 @@ function adjustmentSummary(r, bearer) {
   }).filter(p => p.adj !== 0 && p.count > 0).sort((a, b) => a.rank - b.rank);
   if (!parts.length) return '';
   const shift = -parts.reduce((sum, p) => sum + p.adj * p.count, 0);
-  return `<p class="adjust-summary">調整の内訳：${parts.map(p => `ランク${p.rank} ${signedYen(p.adj)}×${p.count}人＝${signedYen(p.adj * p.count)}`).join('、')}<br>→ その分、${escapeHtml(memberName(bearer))}（差額担当）の支払いが <strong>${signedYen(shift)}</strong>。この回の合計は請求額のままです。</p>`;
+  return `<p class="adjust-summary">調整の内訳：${parts.map(p => `ランク${p.rank} ${signedYen(p.adj)}×${p.count}人＝${signedYen(p.adj * p.count)}`).join('、')}<br>→ その分、${escapeHtml(memberName(bearer))}（端数を持つ人）の支払いが <strong>${signedYen(shift)}</strong>。この回の合計は請求額のままです。</p>`;
 }
 // 「ランクごとの金額・微調整」を開いている回。描き直しても開いたままにする（保存はしない）。
 const openAdjustments = new Set();
@@ -625,7 +625,7 @@ function refreshCalculated() {
     const target = $('detail-' + r.id);
     const numeric = numericRound(r);
     const label = escapeHtml(roundName(r));
-    // 「差額を持つ人」の見出しに、この回の差額（差額担当者がランクの金額より多く払う分）を出す。
+    // 「端数を持つ人」の見出しに、この回の差額（端数を持つ人がランクの金額より多く払う分）を出す。
     const diffLabel = $('bearer-diff-' + r.id);
     if (diffLabel) diffLabel.textContent = '';
     if (isBlankAmount(r)) {
@@ -636,17 +636,17 @@ function refreshCalculated() {
       const result = C.calculateRound(state.members, state.organizerId, numeric);
       const bearer = state.members.find(m => m.id === result.bearerId);
       const bearerPays = result.amounts[bearer.id], bearerBase = result.rankAmounts[bearer.rank];
-      if (diffLabel) diffLabel.textContent = `（差額 ${signedYen(bearerPays - bearerBase)}）`;
+      if (diffLabel) diffLabel.textContent = `（端数 ${signedYen(bearerPays - bearerBase)}）`;
       const ranks = Object.keys(result.rankAmounts).map(Number).sort((a, b) => a - b);
       target.innerHTML = `${adjustmentSummary(r, bearer)}
         <details class="adjust" data-adjust-for="${r.id}" ${openAdjustments.has(r.id) ? 'open' : ''}><summary>ランクごとの金額・微調整${hasAdjustments(r) ? '（調整中）' : ''}<span class="summary-note">各ランクの1人あたりの金額を、100円単位で増やしたり減らしたりできます。</span></summary>
-        <p class="help">差額担当：${escapeHtml(memberName(bearer))}　支払 ${yen(bearerPays)}（ランク${bearer.rank}の金額 ${yen(bearerBase)} ＋ 差額 ${yen(bearerPays - bearerBase)}）</p>
+        <p class="help">端数を持つ人：${escapeHtml(memberName(bearer))}　支払 ${yen(bearerPays)}（ランク${bearer.rank}の金額 ${yen(bearerBase)} ＋ 端数 ${yen(bearerPays - bearerBase)}）</p>
         <div aria-label="ランク別の微調整">${ranks.map(rank => {
           const adjustment = r.adjustments[rank] || 0;
           return `<div class="adjust-row"><div><strong>ランク${rank}</strong><span class="adjust-value">${yen(result.rankAmounts[rank])} / 人<br>調整 ${adjustment > 0 ? '+' : ''}${yen(adjustment)}</span></div>
             <button type="button" data-action="adjust" data-rank="${rank}" data-delta="-100" aria-label="${label}のランク${rank}を100円減らす" ${C.canAdjustRound(state.members, state.organizerId, numeric, rank, -100) ? '' : 'disabled'}>−100円</button>
             <button type="button" data-action="adjust" data-rank="${rank}" data-delta="100" aria-label="${label}のランク${rank}を100円増やす" ${C.canAdjustRound(state.members, state.organizerId, numeric, rank, 100) ? '' : 'disabled'}>＋100円</button></div>`;
-        }).join('')}</div>${clearAdjustmentsButton(r)}<p class="help">差額担当者は同ランクの調整後の金額以上を負担します。0円未満になる操作もできません。</p></details>`;
+        }).join('')}</div>${clearAdjustmentsButton(r)}<p class="help">端数を持つ人は同ランクの調整後の金額以上を負担します。0円未満になる操作もできません。</p></details>`;
     } catch (error) {
       target.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>${clearAdjustmentsButton(r)}`;
     }
