@@ -592,7 +592,7 @@ function bearerChoice(r) {
 function renderMembers() {
   $('members').innerHTML = state.members.map((m, i) => `
     <div class="member" data-member="${m.id}">
-      <label><span class="sr-only">${i + 1}人目の名前</span><input data-field="name" maxlength="80" placeholder="空欄なら${C.defaultName(i)}" value="${escapeHtml(m.name)}" autocomplete="off"></label>
+      <label><span class="sr-only">${i + 1}人目の名前</span><input data-field="name" maxlength="80" placeholder="例：${C.defaultName(i)}" value="${escapeHtml(m.name)}" autocomplete="off"></label>
       <label><span class="sr-only">${i + 1}人目のランク</span><select data-field="rank">${Array.from({ length:C.MAX_RANK }, (_, i) => i + 1).map(rank => `<option value="${rank}" ${m.rank === rank ? 'selected' : ''}>${rank}</option>`).join('')}</select></label>
       <label class="organizer"><span class="sr-only">${i + 1}人目を幹事にする</span><input type="radio" name="organizer" data-field="organizer" ${state.organizerId === m.id ? 'checked' : ''}></label>
       <button type="button" class="delete" data-action="remove-member" aria-label="${i + 1}人目（${escapeHtml(memberName(m))}）を削除" ${state.members.length === 1 ? 'disabled' : ''}>削除</button>
@@ -740,7 +740,7 @@ function lotteryCard(target, title, basis, entry, unavailable) {
   const label = title ? `${title}の運試しの結果` : '運試しの結果';
   const body = unavailable ? `<p class="help">${unavailable}</p>`
     : entry ? `<p class="success">${entry.count}回目の結果</p>`
-    : (title ? '<p class="help">まだ回していません。押すと、この回の1人ずつの金額がくじで決まります。</p>' : '<p class="help">まだ回していません。押すと、全員の金額がくじで決まります。</p>');
+    : (title ? '<p class="help">押すと、この回の1人ずつの金額がくじで決まります。</p>' : '<p class="help">押すと、全員の金額がくじで決まります。</p>');
   return `<div class="lottery-card" data-lottery-card="${target}">${title ? `<h3>${escapeHtml(title)}</h3>` : ''}${body}
     <div class="lottery-table">${entry ? lotteryTable(basis, entry.amounts, label) : ''}</div>
     <div class="lottery-actions"><button type="button" class="primary" data-lottery-action="draw" data-target="${target}" ${unavailable ? 'disabled' : ''}>${entry ? 'もう一回' : '運試しする'}</button>
