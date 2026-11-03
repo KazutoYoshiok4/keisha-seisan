@@ -11,13 +11,14 @@
     :root { color-scheme: light; --ink:#1f1d1a; --muted:#69645b; --accent:#26405f; --accent-dark:#1a2e46; --paper:#faf8f3; --pale:#f0ede5; --tint:#e6ebf2; --line:#ddd7cb; --field:#b8b1a3; --red:#a3302a; }
     * { box-sizing:border-box; }
     body { margin:0; font-family:system-ui,-apple-system,"Hiragino Sans","Yu Gothic UI","Segoe UI",sans-serif; background:var(--paper); color:var(--ink); line-height:1.65; }
-    main { max-width:520px; margin:auto; padding:24px 20px 72px; }
+    main { max-width:600px; margin:auto; padding:24px 20px 72px; }
     h1 { margin:0; font-size:clamp(23px,5vw,28px); font-weight:700; letter-spacing:.02em; }
     h2 { font-size:18px; margin:0; letter-spacing:.02em; }
     h3 { margin:0; font-size:17px; }
     p { margin:8px 0 16px; }
     .eyebrow { font-size:13px; color:var(--muted); margin:0 0 2px; }
     .lead { font-size:14px; color:var(--muted); margin:4px 0 0; }
+    .nw { white-space:nowrap; }
     .muted, .help { color:var(--muted); font-size:14px; }
     header { padding:4px 0 8px; }
     .panel { border-top:2px solid var(--ink); padding:18px 0 4px; margin-top:32px; }
@@ -33,11 +34,11 @@
     button.primary { background:var(--accent); color:white; border-color:var(--accent); }
     button.primary:hover:not(:disabled) { background:var(--accent-dark); }
     button:disabled { color:#9a958b; background:var(--pale); border-color:var(--line); cursor:default; }
-    button.delete { color:var(--red); padding:8px 10px; }
+    button.delete { color:var(--red); padding:8px 10px; white-space:nowrap; }
     input:not([type=checkbox]):not([type=radio]), select, textarea { width:100%; border:1px solid var(--field); border-radius:4px; padding:8px 10px; background:white; color:var(--ink); }
     input[type=checkbox], input[type=radio] { width:20px; height:20px; accent-color:var(--accent); flex-shrink:0; margin:0; }
     :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-    .member { display:grid; grid-template-columns:minmax(0,1fr) 76px 64px 48px; align-items:center; gap:8px; padding:8px 0; border-top:1px solid var(--line); }
+    .member { display:grid; grid-template-columns:minmax(0,1fr) 76px 64px 64px; align-items:center; gap:8px; padding:8px 0; border-top:1px solid var(--line); }
     .member-head { font-size:12px; color:var(--muted); padding:0 0 4px; border:0; }
     .organizer { display:flex; justify-content:center; align-items:center; min-height:46px; cursor:pointer; }
     .wide { width:100%; margin-top:12px; }
@@ -124,7 +125,7 @@
     footer { margin-top:32px; padding-top:12px; border-top:1px solid var(--line); }
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     [hidden] { display:none !important; }
-    @media(max-width:480px) { main { padding:18px 24px 56px; } .round { padding:13px 10px; } .member { gap:6px; grid-template-columns:minmax(0,1fr) 68px 48px 44px; } .member button { padding:8px 0; } .adjust-row { gap:5px; } .adjust-row button { min-width:76px; } th,td { padding:10px 9px; } }
+    @media(max-width:480px) { main { padding:18px 20px 56px; } .round { padding:13px 10px; } .member { gap:6px; grid-template-columns:minmax(0,1fr) 68px 48px 44px; } .member button { padding:8px 0; } .adjust-row { gap:5px; } .adjust-row button { min-width:76px; } th,td { padding:10px 9px; } }
   </style>
 </head>
 <body>
@@ -132,8 +133,8 @@
   <header id="top">
     <p class="eyebrow">飲み会の幹事に</p>
     <h1>傾斜つき精算ツール</h1>
-    <p class="lead">役職や年次に合わせて傾斜をつけて割り勘し、LINEで送る文面まで作れます。</p>
-    <div class="header-actions"><a class="button-link" href="#guide">使い方を見る</a><button type="button" id="load-example">例を見る</button></div>
+    <p class="lead">役職や年次に合わせて、傾斜をつけて割り勘するツールです。<span class="nw">1次会・2次会</span>ごとに参加者と傾斜を変えられるので、途中から来た人や先に帰った人がいても、そのまま計算できます。金額は<span class="nw">100円</span>単位でそろえ、LINEで送る文面まで作れます。登録もアプリも不要です。</p>
+    <div class="header-actions"><a class="button-link" href="#guide">使い方を見る</a><button type="button" id="load-example">入力例で試す</button></div>
   </header>
   <div class="tabs" role="group" aria-label="モードの切り替え">
     <button type="button" data-mode="normal" aria-pressed="true">通常モード</button>
@@ -205,7 +206,7 @@
     <h3>抽選モード</h3>
     <p>上のタブで切り替えます。いつもの金額の0.5〜1.5倍の範囲で、1人ずつランダムに金額を決めます。合計は請求額のままです。全部の回をまとめて回すか、回ごとに回すかを選べます。抽選すると、送る文面も抽選の金額になります。</p>
     <h3>保存について</h3>
-    <p>入力はこのブラウザに自動で保存され、端末の外には送信しません。iPhoneのSafariでは、しばらく開かないと消えることがあるので、ホーム画面に追加しておくと安心です。「例を見る」で例を表示している間は保存しません。</p>
+    <p>入力はこのブラウザに自動で保存され、端末の外には送信しません。iPhoneのSafariでは、しばらく開かないと消えることがあるので、ホーム画面に追加しておくと安心です。「入力例で試す」で入力例を表示している間は保存しません。</p>
     <a class="button-link wide-link" href="#top">ツールに戻る ↑</a>
   </section>
   <div id="undo-bar" class="toast" hidden><span id="undo-message" role="status" aria-live="polite"></span><button type="button" id="undo">取り消す</button></div>
@@ -904,10 +905,10 @@ $('undo').addEventListener('click', () => {
 });
 $('load-example').addEventListener('click', () => {
   if (exampleUndo) {
-    state = exampleUndo; exampleUndo = null; $('load-example').textContent = '例を見る'; changed('');
+    state = exampleUndo; exampleUndo = null; $('load-example').textContent = '入力例で試す'; changed('');
   } else {
     exampleUndo = snapshot(); state = { ...C.createExample(), defaultStrength:'medium', message:{ ...state.message }, mode:state.mode, lottery:emptyLottery() };
-    $('load-example').textContent = '例を閉じる'; changed('例を表示しています。この間は保存しません。');
+    $('load-example').textContent = '入力例を閉じる'; changed('入力例を表示しています。閉じると元の入力に戻ります（この間は保存しません）。');
   }
 });
 // 別のタブで保存された内容を取り込み、古い画面で上書きしないようにする。
@@ -915,7 +916,7 @@ window.addEventListener('storage', event => {
   if (event.key !== STORAGE_KEY || event.newValue === null) return;
   let loaded;
   try { loaded = parseState(event.newValue); } catch (_) { return; }
-  if (exampleUndo) { exampleUndo = loaded; $('status').textContent = '別のタブで入力が変わりました。例を閉じると反映されます。'; return; }
+  if (exampleUndo) { exampleUndo = loaded; $('status').textContent = '別のタブで入力が変わりました。入力例を閉じると反映されます。'; return; }
   state = loaded; undoState = null; renderUndo();
   revision++; $('copy-fallback').hidden = true; $('copy-text').value = ''; $('copy-status').textContent = '';
   renderAll();
