@@ -141,6 +141,7 @@
     .send-actions { display:flex; gap:8px; margin-top:14px; }
     .send-actions > * { flex:1; }
     .send-actions #share { flex:3; min-height:54px; font-size:17px; }
+    .image-button { width:100%; margin-top:8px; }
     .message-edit summary { cursor:pointer; color:var(--accent); font-weight:700; padding:12px 0; min-height:46px; }
     .message-edit .message-settings { margin:4px 0 0; padding:0; border:0; }
     .guide { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:20px; box-shadow:0 2px 0 var(--line); }
@@ -208,6 +209,7 @@
       <h3>送る文面</h3>
       <pre id="line-preview"></pre>
       <div class="send-actions"><a id="share" class="button-link primary" target="_blank" rel="noopener" aria-disabled="true">LINEで送る</a><button type="button" id="copy" disabled>コピー</button></div>
+      <button type="button" class="image-button" id="save-image" disabled>金額の表を画像で保存</button>
       <p id="copy-status" class="help" role="status" aria-live="polite"></p>
     <div id="copy-fallback" hidden>
       <label class="field" for="copy-text">コピーできない場合は、下の文面を選択してコピーしてください。</label>
@@ -803,10 +805,92 @@ document.querySelector('.tabs').addEventListener('click', event => {
   state.mode = mode;
   clearUndo(); save(); renderMode(); renderLine();
 });
+// 画像にする表。LINEの文面と同じ金額を使う。
+function tableForImage() {
+  const outcome = state.mode === 'lottery' ? lotteryOutcome() : null;
+  const who = m => memberName(m) + (m.id === state.organizerId ? '（幹事）' : '');
+  if (outcome && outcome.scope === 'total') {
+    return { note:'抽選で決めた金額です', head:['名前', 'お支払い', 'いつも'],
+      rows:state.members.filter(m => Object.hasOwn(outcome.totals, m.id)).map(m => [who(m), yen(outcome.totals[m.id]), yen(outcome.basis[m.id])]),
+      foot:['合計', yen(settlement.grandTotal), yen(settlement.grandTotal)] };
+  }
+  const amounts = outcome ? outcome.rounds : settlement.rounds.map(r => r.amounts);
+  const totals = outcome ? outcome.totals : settlement.totals;
+  const perRound = amounts.length > 1;
+  return { note:outcome ? `${outcome.drawnNames.join('・')}は抽選で決めた金額です` : '',
+    head:['名前', '合計', ...(perRound ? state.rounds.map(roundName) : [])],
+    rows:state.members.filter(m => amounts.some(a => Object.hasOwn(a, m.id))).map(m => [who(m), yen(totals[m.id]), ...(perRound ? amounts.map(a => Object.hasOwn(a, m.id) ? yen(a[m.id]) : '—') : [])]),
+    foot:['請求額', yen(settlement.grandTotal), ...(perRound ? settlement.rounds.map(r => yen(r.total)) : [])] };
+}
+function drawTableImage() {
+  const t = tableForImage();
+  const font = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif';
+  const scale = 2, pad = 24, rowH = 42, cellPad = 14;
+  const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
+  ctx.font = `700 15px ${font}`;
+  const widths = t.head.map((_, i) => Math.max(...[t.head, ...t.rows, t.foot].map(row => ctx.measureText(row[i]).width)) + cellPad * 2);
+  const tableW = widths.reduce((a, b) => a + b, 0);
+  const top = pad + 34 + (t.note ? 24 : 0) + 10;
+  const W = Math.max(tableW + pad * 2, 360), H = top + rowH * (t.rows.length + 2) + pad;
+  canvas.width = W * scale; canvas.height = H * scale;
+  ctx.scale(scale, scale);
+  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#C2471A'; ctx.fillRect(0, 0, W, 6);
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#2B2622'; ctx.font = `800 19px ${font}`; ctx.textAlign = 'left';
+  ctx.fillText('お会計の内訳', pad, pad + 14);
+  ctx.fillStyle = '#9E3711'; ctx.textAlign = 'right';
+  ctx.fillText(`合計 ${yen(settlement.grandTotal)}`, W - pad, pad + 14);
+  if (t.note) { ctx.fillStyle = '#7A6F66'; ctx.font = `500 13px ${font}`; ctx.textAlign = 'left'; ctx.fillText(t.note, pad, pad + 44); }
+  const x0 = (W - tableW) / 2;
+  const drawRow = (row, y, kind) => {
+    if (kind === 'head') { ctx.fillStyle = '#FBF1E3'; ctx.fillRect(x0, y, tableW, rowH); }
+    ctx.fillStyle = '#FCE9DF'; ctx.fillRect(x0 + widths[0], y, widths[1], rowH);
+    let x = x0;
+    row.forEach((text, i) => {
+      ctx.font = kind === 'head' ? `600 13px ${font}` : i === 1 || kind === 'foot' ? `800 15px ${font}` : `500 15px ${font}`;
+      ctx.fillStyle = kind === 'head' ? '#7A6F66' : i === 1 ? '#9E3711' : '#2B2622';
+      ctx.textAlign = i === 0 ? 'left' : 'right';
+      ctx.fillText(text, i === 0 ? x + cellPad : x + widths[i] - cellPad, y + rowH / 2);
+      x += widths[i];
+    });
+  };
+  drawRow(t.head, top, 'head');
+  t.rows.forEach((row, n) => {
+    const y = top + rowH * (n + 1);
+    drawRow(row, y, 'body');
+    ctx.strokeStyle = '#EFE3D3'; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + tableW, y); ctx.stroke(); ctx.setLineDash([]);
+  });
+  const footY = top + rowH * (t.rows.length + 1);
+  ctx.strokeStyle = '#2B2622'; ctx.lineWidth = 1;
+  [footY + 1, footY + 4].forEach(y => { ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + tableW, y); ctx.stroke(); });
+  drawRow(t.foot, footY + 3, 'foot');
+  return canvas;
+}
+// iPhoneでは共有シート（「画像を保存」やLINEへ送れる）、PCではダウンロード。
+// 共有はタップの直後に呼ぶ必要があるので、画像は同期的に作る。
+$('save-image').addEventListener('click', () => {
+  if ($('save-image').disabled) return;
+  const dataUrl = drawTableImage().toDataURL('image/png');
+  const bytes = Uint8Array.from(atob(dataUrl.split(',')[1]), c => c.charCodeAt(0));
+  const name = '精算の表.png';
+  const imageFile = new File([bytes], name, { type:'image/png' });
+  if (matchMedia('(pointer: coarse)').matches && navigator.canShare && navigator.canShare({ files:[imageFile] })) {
+    navigator.share({ files:[imageFile] }).catch(() => {});
+    return;
+  }
+  const url = URL.createObjectURL(imageFile);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  $('copy-status').textContent = '画像を保存しました。';
+});
 function renderLine() {
   const outcome = state.mode === 'lottery' ? lotteryOutcome() : null;
   const ready = settlement && (state.mode === 'normal' || outcome);
   $('copy').disabled = !ready;
+  $('save-image').disabled = !ready;
   // LINEの公式の共有URL。アプリが入っていればLINEが開き、送る相手を選べる。
   if (ready) { $('share').href = 'https://line.me/R/share?text=' + encodeURIComponent(lineText()); $('share').removeAttribute('aria-disabled'); }
   else { $('share').removeAttribute('href'); $('share').setAttribute('aria-disabled', 'true'); }
