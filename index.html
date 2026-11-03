@@ -165,6 +165,21 @@
     .guide li strong { display:block; font-family:var(--round); }
     .guide h3 { font-size:16px; margin-top:22px; color:var(--accent-dark); }
     .guide p { margin:4px 0 12px; }
+    .install-tip { margin-top:14px; background:#FFF1CF; border:1px solid #F3D58C; border-radius:14px; padding:10px 14px 4px; font-size:14px; }
+    .install-tip-head { display:flex; justify-content:space-between; align-items:center; }
+    .install-tip-head strong { font-family:var(--round); color:#8a5a00; font-size:15px; }
+    button.install-close { min-height:36px; min-width:36px; padding:0; border:0; background:transparent; box-shadow:none; font-size:22px; line-height:1; color:var(--muted); }
+    .install-tip p { margin:2px 0 6px; }
+    .install-tip ol { margin:4px 0 6px; padding-left:1.4em; }
+    .install-tip li { margin-bottom:2px; }
+    .install-tip ol.single { list-style:none; padding-left:0; }
+    .install-tip-links { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; }
+    .install-guide { background:var(--pale); border-radius:14px; padding:14px 16px 4px; margin:8px 0 20px; }
+    .install-guide h3 { margin-top:0 !important; }
+    .install-guide h4 { margin:12px 0 2px; font-size:15px; }
+    .guide .install-guide ol { list-style:decimal; padding-left:1.4em; margin:4px 0 10px; }
+    .guide .install-guide li { padding-left:0; margin-bottom:4px; }
+    .guide .install-guide li::before { content:none; }
     .feature { background:#FFF6DC; border:2px solid var(--gold); border-radius:14px; padding:14px 16px 4px; margin:8px 0 24px; }
     .feature h3 { margin-top:0 !important; color:#8a5a00 !important; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .badge { font-family:system-ui,sans-serif; font-size:12px; font-weight:700; background:var(--gold); color:var(--ink); border-radius:999px; padding:2px 10px; }
@@ -188,6 +203,12 @@
     <div class="brand"><svg class="logo" viewBox="0 0 96 96" aria-hidden="true"><rect width="96" height="96" rx="24" fill="#C2471A"/><g transform="rotate(-12 46 50)"><path d="M29 19H63Q66 19 66 22V72l-2.5-4-2.5 4-2.5-4-2.5 4-2.5-4-2.5 4-2.5-4-2.5 4-2.5-4-2.5 4-2.5-4-2.5 4-2.5-4-2.5 4-2.5-4-2.5 4V22Q26 19 29 19Z" fill="#fff"/><rect x="33" y="28" width="22" height="5" rx="2.5" fill="#F2B33D"/><rect x="33" y="39" width="15" height="3.5" rx="1.75" fill="#F3D3C2"/><rect x="33" y="47" width="24" height="3.5" rx="1.75" fill="#F3D3C2"/><rect x="33" y="55" width="12" height="3.5" rx="1.75" fill="#F3D3C2"/></g><path d="M71 25q7 6 6 16" stroke="#F2B33D" stroke-width="4.5" fill="none" stroke-linecap="round"/><path d="M78 17q11 9 9 25" stroke="#F2B33D" stroke-width="4.5" fill="none" stroke-linecap="round" opacity=".55"/></svg><div><h1>バイバイ精算</h1><p class="tagline">傾斜つき割り勘・飲み会の幹事に</p></div></div>
     <p class="lead">役職や年次に合わせて、傾斜をつけて割り勘するツールです。<br><span class="nw">1次会・2次会</span>ごとに参加者と傾斜を変えられるので、途中から来た人や先に帰った人がいても、そのまま計算できます。金額は<span class="nw">100円</span>単位でそろえ、LINEで送る文面まで作れます。登録もアプリも不要です。</p>
     <div class="header-actions"><a class="button-link" href="#guide">使い方を見る</a><button type="button" id="load-example">入力例で試す</button></div>
+    <aside id="install-tip" class="install-tip" aria-labelledby="install-tip-title" hidden>
+      <div class="install-tip-head"><strong id="install-tip-title">手軽に使うために</strong><button type="button" id="install-tip-close" class="install-close" aria-label="この案内を閉じる">×</button></div>
+      <p>ホーム画面に追加すると、アプリのようにアイコンからすぐ開けます。入力も消えにくくなります。</p>
+      <ol id="install-tip-steps"></ol>
+      <p class="install-tip-links"><a id="install-tip-open" class="button-link" href="./?openExternalBrowser=1" hidden></a><a href="#install">くわしい手順</a></p>
+    </aside>
   </header>
   <div class="tabs" role="group" aria-label="モードの切り替え">
     <button type="button" data-mode="normal" aria-pressed="true">通常モード</button>
@@ -253,6 +274,24 @@
       <li><strong>お会計を入れる</strong>1次会、2次会…と回を足して、請求額を入れます。来なかった人はチェックを外します。傾斜は「平等・弱・中・強」から選べます。</li>
       <li><strong>LINEで送る</strong>「精算」に1人ずつの金額と送る文面が出ます。「LINEで送る」かコピーして、グループに貼り付けます。支払い方法や期限は「文面を編集」で入れられます。</li>
     </ol>
+    <div id="install" class="install-guide">
+      <h3>手軽に使うために：ホーム画面に追加する</h3>
+      <p>ホーム画面に追加すると、アプリのようにアイコンからすぐ開けます。iPhoneでは、しばらく開かなくても入力が消えにくくなります。</p>
+      <h4>iPhone（Safari）</h4>
+      <ol>
+        <li>Safariでこのページを開く（LINEの中で開いた場合は、メニューから「Safariで開く」を選ぶ）</li>
+        <li>画面下の共有ボタン（四角から上向きの矢印）を押す。見当たらないときは「…」から「共有」</li>
+        <li>一覧から「ホーム画面に追加」を押す</li>
+        <li>右上の「追加」を押す</li>
+      </ol>
+      <h4>Android（Chrome）</h4>
+      <ol>
+        <li>Chromeでこのページを開く（LINEの中で開いた場合は、メニューから「ブラウザで開く」を選ぶ）</li>
+        <li>右上の︙（メニュー）を押す</li>
+        <li>「ホーム画面に追加」（または「アプリをインストール」）を押す</li>
+        <li>「追加」（または「インストール」）を押す</li>
+      </ol>
+    </div>
     <div class="feature">
       <h3>運試しモード <span class="badge">お楽しみ機能</span></h3>
       <p>画面上のタブを「運試しモード」に切り替えると、払う金額をくじで決められます。1人ずつ、いつもの金額の0.5〜1.5倍の範囲でランダムに決まります（いつも5,000円の人なら、2,500〜7,500円のどこか）。</p>
@@ -1058,6 +1097,30 @@ $('load-example').addEventListener('click', () => {
     $('load-example').textContent = '入力例を閉じる'; changed('入力例を表示しています。閉じると元の入力に戻ります（この間は保存しません）。');
   }
 });
+// スマホでホーム画面への追加を案内する。アプリとして開いているとき、閉じたあと、PCでは出さない。
+const INSTALL_TIP_KEY = 'byebye-install-tip-closed';
+function setupInstallTip() {
+  const ua = navigator.userAgent;
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  let closed = false;
+  try { closed = localStorage.getItem(INSTALL_TIP_KEY) === '1'; } catch (_) { /* 読めなければ出す */ }
+  if (!matchMedia('(pointer: coarse)').matches || standalone || closed) return;
+  const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  // LINEの中のブラウザでは追加できないので、まず外のブラウザで開き直してもらう（openExternalBrowser=1 はLINEの機能）。
+  const inLine = /\bLine\//i.test(ua);
+  const steps = inLine ? [`いまはLINEの中で開いています。下のボタンで${ios ? 'Safari' : 'ブラウザ'}で開き直してから、追加してください。`]
+    : ios ? ['画面下の共有ボタン（四角から上向きの矢印）を押す。見当たらないときは「…」から「共有」', '「ホーム画面に追加」を押す', '右上の「追加」を押す']
+    : ['右上の︙（メニュー）を押す', '「ホーム画面に追加」（または「アプリをインストール」）を押す', '「追加」を押す'];
+  $('install-tip-steps').innerHTML = steps.map(step => `<li>${escapeHtml(step)}</li>`).join('');
+  $('install-tip-steps').classList.toggle('single', steps.length === 1);
+  if (inLine) { $('install-tip-open').textContent = ios ? 'Safariで開き直す' : 'ブラウザで開き直す'; $('install-tip-open').hidden = false; }
+  $('install-tip').hidden = false;
+}
+$('install-tip-close').addEventListener('click', () => {
+  $('install-tip').hidden = true;
+  try { localStorage.setItem(INSTALL_TIP_KEY, '1'); } catch (_) { /* 保存できなくても閉じる */ }
+});
+setupInstallTip();
 // この端末に保存した入力をすべて消す。直後なら取り消せる。
 $('reset-all').addEventListener('click', () => {
   if (exampleUndo) { state = exampleUndo; exampleUndo = null; $('load-example').textContent = '入力例で試す'; }
@@ -1065,7 +1128,7 @@ $('reset-all').addEventListener('click', () => {
   state = initialState();
   openAdjustments.clear();
   let backupCleared = true;
-  try { localStorage.removeItem(BACKUP_KEY); } catch (_) { backupCleared = false; }
+  try { localStorage.removeItem(BACKUP_KEY); localStorage.removeItem(INSTALL_TIP_KEY); } catch (_) { backupCleared = false; }
   changed('', true, { state:before, label:'入力をすべて消しました。' });
   if (storageFailed || !backupCleared) { clearUndo(); $('status').textContent = '保存データを消せませんでした。ブラウザの設定から、このサイトのWebサイトデータを削除してください。'; }
 });
