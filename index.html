@@ -10,6 +10,19 @@
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="apple-mobile-web-app-title" content="バイバイ精算">
+  <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+  <!-- リンクを共有したときのプレビュー。URLは公開先の絶対パス（ドメイン移行時に書き換える） -->
+  <link rel="canonical" href="https://kazutoyoshiok4.github.io/keisha-seisan/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="バイバイ精算">
+  <meta property="og:title" content="バイバイ精算｜傾斜つき割り勘・飲み会の幹事に">
+  <meta property="og:description" content="役職や年次に合わせて、傾斜をつけて割り勘。1次会・2次会ごとに参加者と傾斜を変えられ、LINEで送る文面まで作れます。登録不要。">
+  <meta property="og:url" content="https://kazutoyoshiok4.github.io/keisha-seisan/">
+  <meta property="og:image" content="https://kazutoyoshiok4.github.io/keisha-seisan/ogp.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="ja_JP">
+  <meta name="twitter:card" content="summary_large_image">
   <style>
     /* 居酒屋の伝票のような温かい見た目。生成りの地に柿色、飾りにビールの金色。 */
     :root { color-scheme: light; --ink:#2B2622; --muted:#7A6F66; --accent:#C2471A; --accent-dark:#9E3711; --gold:#F2B33D; --paper:#FFF8EF; --surface:#FFFFFF; --pale:#FBF1E3; --tint:#FCE9DF; --line:#EFE3D3; --field:#DCCDB9; --red:#B42318; --round:"Hiragino Maru Gothic ProN","Hiragino Maru Gothic Pro",system-ui,-apple-system,"Yu Gothic UI",sans-serif; }
@@ -49,6 +62,7 @@
     button.delete:disabled { background:var(--pale); border-color:var(--line); color:#c9bfb4; }
     input:not([type=checkbox]):not([type=radio]), select, textarea { width:100%; border:1px solid var(--field); border-radius:10px; padding:8px 12px; background:var(--surface); color:var(--ink); }
     input:not([type=checkbox]):not([type=radio]):focus, select:focus, textarea:focus { border-color:var(--accent); }
+    ::placeholder { color:#B9AEA2; opacity:1; }
     input[type=checkbox], input[type=radio] { width:20px; height:20px; accent-color:var(--accent); flex-shrink:0; margin:0; }
     :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
     .card, #members { background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:0 2px 0 var(--line); }
@@ -158,6 +172,11 @@
     .terms { margin:8px 0 0; }
     .terms dt { font-weight:700; margin-top:12px; padding-left:10px; border-left:3px solid var(--accent); line-height:1.4; }
     .terms dd { margin:4px 0 0 13px; color:var(--muted); font-size:14px; }
+    .site-footer { margin-top:32px; text-align:center; font-size:13px; color:var(--muted); }
+    .site-footer nav { display:flex; flex-wrap:wrap; justify-content:center; gap:4px 18px; margin-bottom:14px; }
+    .site-footer a { color:var(--muted); }
+    .site-footer small { display:block; margin-top:14px; }
+    button.reset-all { font-size:13px; font-weight:600; color:var(--muted); background:transparent; border-color:var(--field); min-height:40px; }
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     [hidden] { display:none !important; }
     @media(max-width:480px) { main { padding:18px 16px 56px; } #members { padding:2px 10px; } .member-head { padding:0 11px 4px; } .round { padding:14px 12px; } .member { gap:6px; grid-template-columns:minmax(0,1fr) 64px 44px 44px; } .member button { padding:8px 0; font-size:13px; } .adjust-row { gap:5px; } .adjust-row button { min-width:76px; } th,td { padding:10px 9px; } .guide { padding:16px; } }
@@ -199,7 +218,7 @@
     <div id="results"></div>
     <div id="lottery-view" hidden>
       <p class="help">いつもの金額の0.5〜1.5倍の範囲で、1人ずつランダムに決めます。合計は変わりません。</p>
-      <fieldset><legend>抽選のしかた</legend><div class="bearer-choice">
+      <fieldset><legend>回し方</legend><div class="bearer-choice">
         <label class="chip"><input type="radio" name="lottery-scope" value="total">全部の回をまとめて</label>
         <label class="chip"><input type="radio" name="lottery-scope" value="round">回ごと</label>
       </div></fieldset>
@@ -237,19 +256,24 @@
     <div class="feature">
       <h3>運試しモード <span class="badge">お楽しみ機能</span></h3>
       <p>画面上のタブを「運試しモード」に切り替えると、払う金額をくじで決められます。1人ずつ、いつもの金額の0.5〜1.5倍の範囲でランダムに決まります（いつも5,000円の人なら、2,500〜7,500円のどこか）。</p>
-      <p>全部の回をまとめて回すか、1次会・2次会と回ごとに回すかを選べます。抽選すると、送る文面も抽選の金額になります。通常モードに戻せば、いつもの金額の文面に戻ります。</p>
+      <p>全部の回をまとめて回すか、1次会・2次会と回ごとに回すかを選べます。運試しすると、送る文面もその金額になります。通常モードに戻せば、いつもの金額の文面に戻ります。</p>
     </div>
     <h3 class="terms-title">補足：ことばの説明</h3>
     <p class="help">読まなくても使えます。気になったときにどうぞ。</p>
     <dl class="terms">
       <dt>傾斜</dt><dd>役職や年次によって、払う金額に差をつけることです。「平等」は全員同じ、「弱・中・強」の順に差が大きくなります。「中」なら、ランクが1つ違うと1人あたりの金額が約1割違います。</dd>
       <dt>ランク</dt><dd>払う金額の多さの段階です。1がいちばん多く払い、数字が大きいほど少なくなります（1〜7）。</dd>
-      <dt>端数</dt><dd>1人あたりの金額は100円単位で切り捨てます。余りは上のランクから順に100円ずつ配り、それでも残った100円未満の端数は「端数を持つ人」が払います。ふだんは幹事ですが、回ごとにほかの人にも変えられます。下のランクの人が上のランクより多く払うことはありません。</dd>
+      <dt>端数</dt><dd>1人あたりの金額は100円単位で切り捨てます。余りは上のランクから順に、そのランクの全員に100円ずつ配ります。上のランクを追い越してしまう場合や、全員に配れない場合は配らず、残った分（端数）は「端数を持つ人」が払います。ふだんは幹事ですが、回ごとにほかの人にも変えられます。微調整をしなければ、ランクごとの1人あたりの金額は、上のランクほど多くなります。端数を持つ人は、端数の分だけ同じランクの人より多く払います。</dd>
       <dt>微調整</dt><dd>各回の「ランクごとの金額・微調整」で、ランクごとの1人あたりの金額を100円単位で増やしたり減らしたりできます。増減した分は、端数を持つ人の支払いで合わせます。人数・ランク・幹事・請求額・参加者・傾斜・端数を持つ人を変えると、その回の微調整はリセットされます。</dd>
-      <dt>保存</dt><dd>入力はこのブラウザに自動で保存され、端末の外には送信しません。iPhoneのSafariでは、しばらく開かないと消えることがあるので、ホーム画面に追加しておくと安心です。「入力例で試す」で入力例を表示している間は保存しません。</dd>
+      <dt>保存</dt><dd>入力はこのブラウザに自動で保存され、端末の外には送信しません。iPhoneのSafariでは、しばらく開かないと消えることがあるので、ホーム画面に追加しておくと安心です。「入力例で試す」で入力例を表示している間は保存しません。ページのいちばん下の「この端末の入力をすべて消す」で、保存した内容を消せます。</dd>
     </dl>
     <a class="button-link wide-link" href="#top">ツールに戻る ↑</a>
   </section>
+  <footer class="site-footer">
+    <nav><a href="terms.html">利用規約</a><a href="privacy.html">プライバシーポリシー</a><a href="about.html">運営者・お問い合わせ</a></nav>
+    <button type="button" id="reset-all" class="reset-all">この端末の入力をすべて消す</button>
+    <small>© 2026 バイバイ精算</small>
+  </footer>
   <div id="undo-bar" class="toast" hidden><span id="undo-message" role="status" aria-live="polite"></span><button type="button" id="undo">取り消す</button></div>
 </main>
 <!-- 計算ロジック（DOMに依存しない純粋関数。test.js はこのブロックを取り出して検証する） -->
@@ -361,7 +385,7 @@
   function drawLottery(totals, organizerId, random) {
     const [low, high] = LOTTERY_RANGE;
     const payers = Object.entries(totals).filter(([, value]) => value > 0).map(([id, base]) => ({ id, base }));
-    check(payers.length >= 2, '抽選には、支払う人が2人以上必要です。');
+    check(payers.length >= 2, '運試しには、支払う人が2人以上必要です。');
     const total = payers.reduce((sum, p) => sum + p.base, 0);
     payers.forEach(p => { p.value = p.base * (low + (high - low) * random()); });
     // 合計とのずれを、上限（または下限）までの余裕に比例して配る。余裕の合計は必ずずれ以上あるので範囲内に収まる。
@@ -568,7 +592,7 @@ function bearerChoice(r) {
 function renderMembers() {
   $('members').innerHTML = state.members.map((m, i) => `
     <div class="member" data-member="${m.id}">
-      <label><span class="sr-only">${i + 1}人目の名前</span><input data-field="name" maxlength="80" placeholder="${C.defaultName(i)}" value="${escapeHtml(m.name)}" autocomplete="off"></label>
+      <label><span class="sr-only">${i + 1}人目の名前</span><input data-field="name" maxlength="80" placeholder="空欄なら${C.defaultName(i)}" value="${escapeHtml(m.name)}" autocomplete="off"></label>
       <label><span class="sr-only">${i + 1}人目のランク</span><select data-field="rank">${Array.from({ length:C.MAX_RANK }, (_, i) => i + 1).map(rank => `<option value="${rank}" ${m.rank === rank ? 'selected' : ''}>${rank}</option>`).join('')}</select></label>
       <label class="organizer"><span class="sr-only">${i + 1}人目を幹事にする</span><input type="radio" name="organizer" data-field="organizer" ${state.organizerId === m.id ? 'checked' : ''}></label>
       <button type="button" class="delete" data-action="remove-member" aria-label="${i + 1}人目（${escapeHtml(memberName(m))}）を削除" ${state.members.length === 1 ? 'disabled' : ''}>削除</button>
@@ -594,7 +618,7 @@ function renderRounds() {
       <div class="heading"><h3 id="title-${r.id}">${escapeHtml(roundName(r))}</h3><button type="button" class="delete" data-action="remove-round" aria-label="${escapeHtml(roundName(r))}を削除">この回を削除</button></div>
       <div class="fields">
         <label class="field full">回の名前<input data-field="round-name" maxlength="40" placeholder="例：1次会、焼肉、カラオケ" value="${escapeHtml(r.name)}" autocomplete="off"></label>
-        <label class="field">請求額（円）<input data-field="amount" inputmode="numeric" maxlength="30" placeholder="35,038" value="${escapeHtml(displayAmount(r))}" autocomplete="off" aria-describedby="detail-${r.id}"></label>
+        <label class="field">請求額（円）<input data-field="amount" inputmode="numeric" maxlength="30" placeholder="例：35,038" value="${escapeHtml(displayAmount(r))}" autocomplete="off" aria-describedby="detail-${r.id}"></label>
         <label class="field">傾斜の強さ<select data-field="strength">${Object.entries(strengthLabels).map(([key, label]) => `<option value="${key}" ${r.strength === key ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
       </div>
       <fieldset><legend>参加者 ${r.participantIds.length}人</legend><div class="participants">${state.members.map(m => `<label class="chip"><input type="checkbox" data-field="participant" value="${m.id}" ${r.participantIds.includes(m.id) ? 'checked' : ''}><span>${escapeHtml(memberName(m))}${m.id === state.organizerId ? '（幹事）' : ''}</span></label>`).join('')}</div></fieldset>
@@ -688,7 +712,7 @@ function syncLottery() {
     if (!r) delete l.rounds[id];
     else if (result && !sameMap(l.rounds[id].basis, payersOf(result.amounts))) { delete l.rounds[id]; dropped = true; }
   }
-  if (dropped) lotteryNotice = '入力が変わったので、抽選結果を取り消しました。';
+  if (dropped) lotteryNotice = '入力が変わったので、運試しの結果を取り消しました。';
   renderLottery();
 }
 // 抽選を反映した全員の金額。抽選していなければ null。回ごとの場合、抽選していない回はいつもの金額。
@@ -704,7 +728,7 @@ function lotteryOutcome() {
 }
 function lotteryTable(basis, amounts, label) {
   return `<div class="table-wrap" tabindex="0" role="region" aria-label="${escapeHtml(label)}"><table><caption class="sr-only">${escapeHtml(label)}</caption>
-    <thead><tr><th scope="col">名前</th><th scope="col">いつも</th><th scope="col">抽選</th><th scope="col">差</th></tr></thead>
+    <thead><tr><th scope="col">名前</th><th scope="col">いつも</th><th scope="col">結果</th><th scope="col">差</th></tr></thead>
     <tbody>${state.members.filter(m => Object.hasOwn(basis, m.id)).map(m => {
       const diff = amounts[m.id] - basis[m.id];
       return `<tr><th scope="row">${escapeHtml(memberName(m))}${m.id === state.organizerId ? '（幹事）' : ''}</th><td>${yen(basis[m.id])}</td><td>${yen(amounts[m.id])}</td><td class="${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${signedYen(diff)}</td></tr>`;
@@ -713,16 +737,16 @@ function lotteryTable(basis, amounts, label) {
 }
 // 1枚分の抽選カード。target は 'total' か回のID。
 function lotteryCard(target, title, basis, entry, unavailable) {
-  const label = title ? `${title}の抽選結果` : '抽選結果';
+  const label = title ? `${title}の運試しの結果` : '運試しの結果';
   const body = unavailable ? `<p class="help">${unavailable}</p>`
-    : entry ? `<p class="success">抽選${entry.count}回目</p>`
-    : '<p class="help">いつもの金額のままです。</p>';
+    : entry ? `<p class="success">${entry.count}回目の結果</p>`
+    : (title ? '<p class="help">まだ回していません。押すと、この回の1人ずつの金額がくじで決まります。</p>' : '<p class="help">まだ回していません。押すと、全員の金額がくじで決まります。</p>');
   return `<div class="lottery-card" data-lottery-card="${target}">${title ? `<h3>${escapeHtml(title)}</h3>` : ''}${body}
     <div class="lottery-table">${entry ? lotteryTable(basis, entry.amounts, label) : ''}</div>
-    <div class="lottery-actions"><button type="button" class="primary" data-lottery-action="draw" data-target="${target}" ${unavailable ? 'disabled' : ''}>${entry ? 'もう一回' : '抽選する'}</button>
+    <div class="lottery-actions"><button type="button" class="primary" data-lottery-action="draw" data-target="${target}" ${unavailable ? 'disabled' : ''}>${entry ? 'もう一回' : '運試しする'}</button>
     ${entry ? `<button type="button" data-lottery-action="clear" data-target="${target}">元に戻す</button>` : ''}</div></div>`;
 }
-const drawUnavailable = basis => Object.keys(basis).length >= 2 ? '' : '支払う人が2人以上いると抽選できます。';
+const drawUnavailable = basis => Object.keys(basis).length >= 2 ? '' : '支払う人が2人以上いると回せます。';
 function renderLottery() {
   if (spinning) return;
   const l = state.lottery;
@@ -730,16 +754,16 @@ function renderLottery() {
   let html = lotteryNotice ? `<p class="help">${escapeHtml(lotteryNotice)}</p>` : '';
   if (l.scope === 'total') {
     html += settlement ? lotteryCard('total', '', payersOf(settlement.totals), l.total, drawUnavailable(payersOf(settlement.totals)))
-      : lotteryCard('total', '', {}, null, '精算結果が出ると抽選できます。');
+      : lotteryCard('total', '', {}, null, '精算結果が出ると回せます。');
   } else {
     html += state.rounds.map(r => {
       const result = roundResult(r);
-      if (!result) return lotteryCard(r.id, roundName(r), {}, null, '請求額と参加者を入力すると抽選できます。');
+      if (!result) return lotteryCard(r.id, roundName(r), {}, null, '請求額と参加者を入力すると回せます。');
       const basis = payersOf(result.amounts);
       return lotteryCard(r.id, roundName(r), basis, l.rounds[r.id], drawUnavailable(basis));
     }).join('');
     const outcome = lotteryOutcome();
-    if (outcome) html += `<div class="lottery-card summary"><h3>全部の回の合計</h3><p class="help">抽選していない回は、いつもの金額です。</p>${lotteryTable(payersOf(settlement.totals), outcome.totals, '全部の回の合計')}</div>`;
+    if (outcome) html += `<div class="lottery-card summary"><h3>全部の回の合計</h3><p class="help">まだ回していない回は、いつもの金額です。</p>${lotteryTable(payersOf(settlement.totals), outcome.totals, '全部の回の合計')}</div>`;
   }
   $('lottery-body').innerHTML = html;
 }
@@ -786,7 +810,7 @@ $('lottery-body').addEventListener('click', event => {
   card.classList.add('spinning');
   const started = Date.now();
   spinning = setInterval(() => {
-    card.querySelector('.lottery-table').innerHTML = lotteryTable(basis, C.drawLottery(basis, keeper, Math.random), '抽選中');
+    card.querySelector('.lottery-table').innerHTML = lotteryTable(basis, C.drawLottery(basis, keeper, Math.random), '運試し中');
     if (Date.now() - started > 1200) { clearInterval(spinning); document.querySelectorAll('[name="lottery-scope"]').forEach(el => { el.disabled = false; }); finish(); }
   }, 70);
 });
@@ -894,7 +918,7 @@ function renderLine() {
   // LINEの公式の共有URL。アプリが入っていればLINEが開き、送る相手を選べる。
   if (ready) { $('share').href = 'https://line.me/R/share?text=' + encodeURIComponent(lineText()); $('share').removeAttribute('aria-disabled'); }
   else { $('share').removeAttribute('href'); $('share').setAttribute('aria-disabled', 'true'); }
-  $('line-preview').textContent = ready ? lineText() : !settlement ? '精算結果が出ると、ここに文面が表示されます。' : '抽選すると、ここに抽選の金額で文面が表示されます。';
+  $('line-preview').textContent = ready ? lineText() : !settlement ? '精算結果が出ると、ここに文面が表示されます。' : '運試しすると、ここにその金額で文面が表示されます。';
 }
 function renderUndo() {
   $('undo-bar').hidden = !undoState;
@@ -1033,6 +1057,17 @@ $('load-example').addEventListener('click', () => {
     exampleUndo = snapshot(); state = { ...C.createExample(), defaultStrength:'medium', message:{ ...state.message }, mode:state.mode, lottery:emptyLottery() };
     $('load-example').textContent = '入力例を閉じる'; changed('入力例を表示しています。閉じると元の入力に戻ります（この間は保存しません）。');
   }
+});
+// この端末に保存した入力をすべて消す。直後なら取り消せる。
+$('reset-all').addEventListener('click', () => {
+  if (exampleUndo) { state = exampleUndo; exampleUndo = null; $('load-example').textContent = '入力例で試す'; }
+  const before = snapshot();
+  state = initialState();
+  openAdjustments.clear();
+  let backupCleared = true;
+  try { localStorage.removeItem(BACKUP_KEY); } catch (_) { backupCleared = false; }
+  changed('', true, { state:before, label:'入力をすべて消しました。' });
+  if (storageFailed || !backupCleared) { clearUndo(); $('status').textContent = '保存データを消せませんでした。ブラウザの設定から、このサイトのWebサイトデータを削除してください。'; }
 });
 // 別のタブで保存された内容を取り込み、古い画面で上書きしないようにする。
 window.addEventListener('storage', event => {

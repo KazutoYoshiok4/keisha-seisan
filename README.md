@@ -104,6 +104,11 @@
   - 計算ロジックは `index.html` 内の `<script id="settlement-calc">` にあります。DOM・ストレージに依存せず入力を変更しない純粋な計算関数で、ブラウザでは `SettlementCalc` として利用します。
 - `test.js`：Node標準のassertだけを使用。`index.html` から計算ロジックのブロックを取り出して検証します。
 - `icon.svg`：ロゴ（ブラウザのタブのアイコン）。
+- `favicon-32.png`：32pxのタブ用アイコン（SVGに対応しないブラウザ向け）。
+- `ogp.png`：LINEやXでURLを共有したときのプレビュー画像（1200×630）。
+- `terms.html`・`privacy.html`・`about.html`：利用規約・プライバシーポリシー・運営者とお問い合わせ（窓口は暫定でGitHub Issues）。共通の見た目は `sub.css`。
+- `404.html`：ページが見つからないとき。
+- ドメインを移すときは、`index.html` の canonical・og:url・og:image の絶対URLと、`404.html` の `/keisha-seisan/` を書き換えます。保存データ（localStorage）はURLのドメインごとに分かれるため、移行前の入力は引き継がれません。
 - `apple-touch-icon.png`：iPhoneでホーム画面に追加したときのアイコン（180×180）。
 - `README.md`：この説明書。
 
