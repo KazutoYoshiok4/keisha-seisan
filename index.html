@@ -141,7 +141,7 @@
     .send-actions { display:flex; gap:8px; margin-top:14px; }
     .send-actions > * { flex:1; }
     .send-actions #share { flex:3; min-height:54px; font-size:17px; }
-    .image-button { width:100%; margin-top:8px; }
+    .image-button { width:100%; margin-top:4px; }
     .message-edit summary { cursor:pointer; color:var(--accent); font-weight:700; padding:12px 0; min-height:46px; }
     .message-edit .message-settings { margin:4px 0 0; padding:0; border:0; }
     .guide { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:20px; box-shadow:0 2px 0 var(--line); }
@@ -172,9 +172,9 @@
   </header>
   <div class="tabs" role="group" aria-label="モードの切り替え">
     <button type="button" data-mode="normal" aria-pressed="true">通常モード</button>
-    <button type="button" data-mode="lottery" aria-pressed="false">抽選モード</button>
+    <button type="button" data-mode="lottery" aria-pressed="false">運試しモード</button>
   </div>
-  <p id="mode-note" class="help mode-note" hidden>入力は通常モードと共通です。金額はいちばん下の「抽選」で決めます。</p>
+  <p id="mode-note" class="help mode-note" hidden><strong>運試しモード</strong>：払う金額を、いつもの金額の0.5〜1.5倍の範囲でランダムに決めるモードです。入力は通常モードと共通で、いちばん下の「運試し」で回します。</p>
   <p id="status" class="help" role="status" aria-live="polite"></p>
   <section class="panel" aria-labelledby="members-title">
     <div class="heading"><h2 id="members-title">メンバー</h2></div>
@@ -205,11 +205,11 @@
       </div></fieldset>
       <div id="lottery-body"></div>
     </div>
+    <button type="button" class="image-button" id="save-image" disabled>金額の表を画像で保存</button>
     <div class="send">
       <h3>送る文面</h3>
       <pre id="line-preview"></pre>
       <div class="send-actions"><a id="share" class="button-link primary" target="_blank" rel="noopener" aria-disabled="true">LINEで送る</a><button type="button" id="copy" disabled>コピー</button></div>
-      <button type="button" class="image-button" id="save-image" disabled>金額の表を画像で保存</button>
       <p id="copy-status" class="help" role="status" aria-live="polite"></p>
     <div id="copy-fallback" hidden>
       <label class="field" for="copy-text">コピーできない場合は、下の文面を選択してコピーしてください。</label>
@@ -235,8 +235,8 @@
       <li><strong>LINEで送る</strong>「精算」に1人ずつの金額と送る文面が出ます。「LINEで送る」かコピーして、グループに貼り付けます。支払い方法や期限は「文面を編集」で入れられます。</li>
     </ol>
     <div class="feature">
-      <h3>抽選モード <span class="badge">お楽しみ機能</span></h3>
-      <p>画面上のタブを「抽選モード」に切り替えると、払う金額をくじで決められます。1人ずつ、いつもの金額の0.5〜1.5倍の範囲でランダムに決まります（いつも5,000円の人なら、2,500〜7,500円のどこか）。</p>
+      <h3>運試しモード <span class="badge">お楽しみ機能</span></h3>
+      <p>画面上のタブを「運試しモード」に切り替えると、払う金額をくじで決められます。1人ずつ、いつもの金額の0.5〜1.5倍の範囲でランダムに決まります（いつも5,000円の人なら、2,500〜7,500円のどこか）。</p>
       <p>全部の回をまとめて回すか、1次会・2次会と回ごとに回すかを選べます。抽選すると、送る文面も抽選の金額になります。通常モードに戻せば、いつもの金額の文面に戻ります。</p>
     </div>
     <h3 class="terms-title">補足：ことばの説明</h3>
@@ -797,7 +797,7 @@ function renderMode() {
   $('mode-note').hidden = !lottery;
   $('results').hidden = lottery;
   $('lottery-view').hidden = !lottery;
-  $('results-title').textContent = lottery ? '抽選' : '精算';
+  $('results-title').textContent = lottery ? '運試し' : '精算';
 }
 document.querySelector('.tabs').addEventListener('click', event => {
   const mode = event.target.dataset.mode;
