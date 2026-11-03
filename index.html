@@ -123,6 +123,8 @@
     .adjust summary { cursor:pointer; color:var(--accent); font-weight:700; padding:12px 0; min-height:46px; }
     .summary-note { display:block; color:var(--muted); font-size:13px; font-weight:400; margin-left:1.1em; }
     .tabs { display:flex; gap:4px; padding:4px; background:var(--surface); border:1px solid var(--line); border-radius:999px; margin-top:18px; box-shadow:0 2px 0 var(--line); }
+    .tabs button { position:relative; }
+    .tab-badge { position:absolute; top:-9px; right:12px; font-size:10px; font-weight:800; line-height:1.6; background:var(--gold); color:var(--ink); border-radius:999px; padding:0 8px; box-shadow:0 1px 0 #C98F12; }
     .tabs button { flex:1; border:0; border-radius:999px; background:transparent; color:var(--muted); min-height:42px; }
     .tabs button[aria-pressed=true], .tabs button[aria-pressed=true]:hover { background:var(--accent); color:white; }
     .tabs button[data-mode=lottery][aria-pressed=true], .tabs button[data-mode=lottery][aria-pressed=true]:hover { background:var(--gold); color:var(--ink); }
@@ -174,7 +176,7 @@
     .install-tip li { margin-bottom:2px; }
     .install-tip ol.single { list-style:none; padding-left:0; }
     .install-tip-links { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; }
-    .install-guide { background:var(--pale); border-radius:14px; padding:14px 16px 4px; margin:8px 0 20px; }
+    .install-guide { background:var(--pale); border-radius:14px; padding:14px 16px 4px; margin:24px 0 8px; }
     .install-guide h3 { margin-top:0 !important; }
     .install-guide h4 { margin:12px 0 2px; font-size:15px; }
     .os-switch { display:flex; gap:4px; padding:4px; background:var(--surface); border:1px solid var(--line); border-radius:999px; margin:10px 0 6px; max-width:280px; }
@@ -189,6 +191,7 @@
     .guide .visual-steps p strong { display:inline; font-family:inherit; }
     .feature { background:#FFF6DC; border:2px solid var(--gold); border-radius:14px; padding:14px 16px 4px; margin:8px 0 24px; }
     .feature h3 { margin-top:0 !important; color:#8a5a00 !important; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .try-lottery { background:var(--gold) !important; border-color:var(--gold) !important; color:var(--ink) !important; box-shadow:0 3px 0 #C98F12 !important; }
     .badge { font-family:system-ui,sans-serif; font-size:12px; font-weight:700; background:var(--gold); color:var(--ink); border-radius:999px; padding:2px 10px; }
     .terms-title { color:var(--ink) !important; }
     .terms { margin:8px 0 0; }
@@ -219,7 +222,7 @@
   </header>
   <div class="tabs" role="group" aria-label="モードの切り替え">
     <button type="button" data-mode="normal" aria-pressed="true">通常モード</button>
-    <button type="button" data-mode="lottery" aria-pressed="false">運試しモード</button>
+    <button type="button" data-mode="lottery" aria-pressed="false">運試しモード<span class="tab-badge" aria-hidden="true">お楽しみ</span></button>
   </div>
   <p id="mode-note" class="help mode-note" hidden><strong>運試しモード</strong>：払う金額を、いつもの金額の0.5〜1.5倍の範囲でランダムに決めるモードです。入力は通常モードと共通で、いちばん下の「運試し」で回します。</p>
   <p id="status" class="help" role="status" aria-live="polite"></p>
@@ -281,6 +284,21 @@
       <li><strong>お会計を入れる</strong>1次会、2次会…と回を足して、請求額を入れます。来なかった人はチェックを外します。傾斜は「平等・弱・中・強」から選べます。</li>
       <li><strong>LINEで送る</strong>「精算」に1人ずつの金額と送る文面が出ます。「LINEで送る」かコピーして、グループに貼り付けます。支払い方法や期限は「文面を編集」で入れられます。</li>
     </ol>
+    <div class="feature">
+      <h3>運試しモード <span class="badge">お楽しみ機能</span></h3>
+      <p>画面上のタブを「運試しモード」に切り替えると、払う金額をくじで決められます。1人ずつ、いつもの金額の0.5〜1.5倍の範囲でランダムに決まります（いつも5,000円の人なら、2,500〜7,500円のどこか）。</p>
+      <p>全部の回をまとめて回すか、1次会・2次会と回ごとに回すかを選べます。運試しすると、送る文面もその金額になります。通常モードに戻せば、いつもの金額の文面に戻ります。</p>
+      <p><button type="button" class="primary try-lottery" id="try-lottery">運試しモードを試してみる</button></p>
+    </div>
+    <h3 class="terms-title">補足：ことばの説明</h3>
+    <p class="help">読まなくても使えます。気になったときにどうぞ。</p>
+    <dl class="terms">
+      <dt>傾斜</dt><dd>役職や年次によって、払う金額に差をつけることです。「平等」は全員同じ、「弱・中・強」の順に差が大きくなります。「中」なら、ランクが1つ違うと1人あたりの金額が約1割違います。</dd>
+      <dt>ランク</dt><dd>払う金額の多さの段階です。1がいちばん多く払い、数字が大きいほど少なくなります（1〜7）。</dd>
+      <dt>端数</dt><dd>1人あたりの金額は100円単位で切り捨てます。余りは上のランクから順に、そのランクの全員に100円ずつ配ります。上のランクを追い越してしまう場合や、全員に配れない場合は配らず、残った分（端数）は「端数を持つ人」が払います。ふだんは幹事ですが、回ごとにほかの人にも変えられます。微調整をしなければ、ランクごとの1人あたりの金額は、上のランクほど多くなります。端数を持つ人は、端数の分だけ同じランクの人より多く払います。</dd>
+      <dt>微調整</dt><dd>各回の「ランクごとの金額・微調整」で、ランクごとの1人あたりの金額を100円単位で増やしたり減らしたりできます。増減した分は、端数を持つ人の支払いで合わせます。人数・ランク・幹事・請求額・参加者・傾斜・端数を持つ人を変えると、その回の微調整はリセットされます。</dd>
+      <dt>保存</dt><dd>入力はこのブラウザに自動で保存され、端末の外には送信しません。iPhoneのSafariでは、しばらく開かないと消えることがあるので、ホーム画面に追加しておくと安心です。「入力例で試す」で入力例を表示している間は保存しません。ページのいちばん下の「この端末の入力をすべて消す」で、保存した内容を消せます。</dd>
+    </dl>
     <div id="install" class="install-guide">
       <h3>手軽に使うために：ホーム画面に追加する</h3>
       <p>ホーム画面に追加すると、アプリのようにアイコンからすぐ開けます。iPhoneでは、しばらく開かなくても入力が消えにくくなります。</p>
@@ -295,20 +313,6 @@
       </div>
       <p class="help">画面の見た目は、OSやブラウザのバージョンによって少し違うことがあります。</p>
     </div>
-    <div class="feature">
-      <h3>運試しモード <span class="badge">お楽しみ機能</span></h3>
-      <p>画面上のタブを「運試しモード」に切り替えると、払う金額をくじで決められます。1人ずつ、いつもの金額の0.5〜1.5倍の範囲でランダムに決まります（いつも5,000円の人なら、2,500〜7,500円のどこか）。</p>
-      <p>全部の回をまとめて回すか、1次会・2次会と回ごとに回すかを選べます。運試しすると、送る文面もその金額になります。通常モードに戻せば、いつもの金額の文面に戻ります。</p>
-    </div>
-    <h3 class="terms-title">補足：ことばの説明</h3>
-    <p class="help">読まなくても使えます。気になったときにどうぞ。</p>
-    <dl class="terms">
-      <dt>傾斜</dt><dd>役職や年次によって、払う金額に差をつけることです。「平等」は全員同じ、「弱・中・強」の順に差が大きくなります。「中」なら、ランクが1つ違うと1人あたりの金額が約1割違います。</dd>
-      <dt>ランク</dt><dd>払う金額の多さの段階です。1がいちばん多く払い、数字が大きいほど少なくなります（1〜7）。</dd>
-      <dt>端数</dt><dd>1人あたりの金額は100円単位で切り捨てます。余りは上のランクから順に、そのランクの全員に100円ずつ配ります。上のランクを追い越してしまう場合や、全員に配れない場合は配らず、残った分（端数）は「端数を持つ人」が払います。ふだんは幹事ですが、回ごとにほかの人にも変えられます。微調整をしなければ、ランクごとの1人あたりの金額は、上のランクほど多くなります。端数を持つ人は、端数の分だけ同じランクの人より多く払います。</dd>
-      <dt>微調整</dt><dd>各回の「ランクごとの金額・微調整」で、ランクごとの1人あたりの金額を100円単位で増やしたり減らしたりできます。増減した分は、端数を持つ人の支払いで合わせます。人数・ランク・幹事・請求額・参加者・傾斜・端数を持つ人を変えると、その回の微調整はリセットされます。</dd>
-      <dt>保存</dt><dd>入力はこのブラウザに自動で保存され、端末の外には送信しません。iPhoneのSafariでは、しばらく開かないと消えることがあるので、ホーム画面に追加しておくと安心です。「入力例で試す」で入力例を表示している間は保存しません。ページのいちばん下の「この端末の入力をすべて消す」で、保存した内容を消せます。</dd>
-    </dl>
     <a class="button-link wide-link" href="#top">ツールに戻る ↑</a>
   </section>
   <footer class="site-footer">
@@ -1099,6 +1103,12 @@ $('load-example').addEventListener('click', () => {
     exampleUndo = snapshot(); state = { ...C.createExample(), defaultStrength:'medium', message:{ ...state.message }, mode:state.mode, lottery:emptyLottery() };
     $('load-example').textContent = '入力例を閉じる'; changed('入力例を表示しています。閉じると元の入力に戻ります（この間は保存しません）。');
   }
+});
+// 使い方の「運試しモードを試してみる」：モードを切り替えて、タブの位置へ移動する。
+$('try-lottery').addEventListener('click', () => {
+  const tab = document.querySelector('.tabs [data-mode=lottery]');
+  if (state.mode !== 'lottery') tab.click();
+  document.querySelector('.tabs').scrollIntoView({ block:'start' });
 });
 // スマホでホーム画面への追加を案内する。アプリとして開いているとき、閉じたあと、PCでは出さない。
 const INSTALL_TIP_KEY = 'byebye-install-tip-closed';
