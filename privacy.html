@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://*.googletagmanager.com https://tagmanager.google.com; style-src 'self' https://www.googletagmanager.com https://tagmanager.google.com https://fonts.googleapis.com; connect-src https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; img-src 'self' https://*.google-analytics.com https://*.googletagmanager.com https://ssl.gstatic.com https://www.gstatic.com; font-src https://fonts.gstatic.com data:; base-uri 'none'; form-action 'none'">
+  <script src="analytics.js"></script>
   <meta name="theme-color" content="#FFF8EF">
   <title>プライバシーポリシー｜バイバイ精算</title>
   <link rel="stylesheet" href="sub.css">
@@ -16,17 +17,18 @@
   <a class="brand" href="./"><img src="icon.svg" alt="">バイバイ精算</a>
   <article>
     <h1>プライバシーポリシー</h1>
-    <p class="updated">制定日：2026年11月3日</p>
+    <p class="updated">制定日：2026年11月3日／最終改定日：2026年11月3日（アクセス解析の導入）</p>
 
     <h2>1. このポリシーについて</h2>
     <p>このポリシーは、Webサイト「バイバイ精算」（以下「本サイト」）で、利用者の情報をどう扱うかを説明するものです。運営者と問い合わせ先は<a href="about.html">運営者・お問い合わせ</a>に記載しています。</p>
 
     <h2>2. 運営者が受け取る情報</h2>
-    <p>本サイトに入力した内容（名前・金額など）は、運営者のサーバーには送信されません。本サイトは会員登録・Cookie・アクセス解析・広告を使っていません。</p>
+    <p>本サイトに入力した内容そのもの（メンバーの名前・ランク・金額・回の名前、支払い方法などのLINEの文面）は、運営者にもGoogleなどの外部にも送信されません。</p>
+    <p>本サイトの改善のため、アクセス解析（Googleアナリティクス）を使っています。アクセス解析で送る情報と止め方は「8. アクセス解析」に記載しています。会員登録と広告は使っていません。</p>
 
     <h2>3. 端末内への保存</h2>
     <ul>
-      <li>入力した内容（メンバーの名前、ランク、各回の請求額・参加者・傾斜、LINEの文面の設定、運試しの結果）は、次に開いたときに続きから使えるよう、お使いのブラウザの保存領域（localStorage）に保存されます。読み込めなかった保存データがあった場合は、その写しも同じ場所に退避します。スマホで「手軽に使うために」の案内を閉じた場合は、閉じたことも保存します。</li>
+      <li>入力した内容（メンバーの名前、ランク、各回の請求額・参加者・傾斜、LINEの文面の設定、運試しの結果）は、次に開いたときに続きから使えるよう、お使いのブラウザの保存領域（localStorage）に保存されます。読み込めなかった保存データがあった場合は、その写しも同じ場所に退避します。スマホで「手軽に使うために」の案内を閉じた場合は、閉じたことも保存します。「8. アクセス解析」で計測を止めた場合は、止めたことも保存します。</li>
       <li>保存先はその端末のブラウザの中だけで、運営者が見ることはできません。ただし、その端末を使える人は見ることができます。</li>
       <li>本サイトのいちばん下にある「この端末の入力をすべて消す」で、保存した内容を消せます（消した直後は「取り消す」で元に戻せます）。ブラウザの設定から本サイトのWebサイトデータを削除しても消えます。閲覧履歴を消すだけでは消えない場合があります。プライベートブラウズでは、タブを閉じると消えることがあります。</li>
     </ul>
@@ -43,8 +45,25 @@
     <h2>7. お問い合わせで受け取る情報</h2>
     <p>お問い合わせは、Googleフォーム（Google LLCが提供）で受け付けています。送信された内容（お問い合わせの種類・内容・お使いの端末、任意で返信先のメールアドレス）は運営者のGoogleアカウントに保存され、回答と本サイトの改善のためだけに使います。法令に基づく場合を除いて、第三者に提供しません。返信先のメールアドレスは、返信のためだけに使います。ご自身が書いた内容の削除をご希望の場合も、同じ窓口からご連絡ください。</p>
 
-    <h2>8. 外部への送信</h2>
-    <p>現在、本サイトから利用者の端末の情報を外部へ自動で送る仕組み（アクセス解析・広告など）はありません。今後導入する場合は、事前にこのポリシーを改定してお知らせします。</p>
+    <h2>8. アクセス解析</h2>
+    <p>本サイトは、どのくらい使われているか、どこで使いにくいかを知って改善するために、Google LLCが提供する次のサービスを使っています。</p>
+    <ul>
+      <li>Googleタグマネージャー：アクセス解析の仕組みを本サイトに読み込むためのサービス</li>
+      <li>Googleアナリティクス：アクセスの状況を集計するサービス</li>
+    </ul>
+    <p>本サイトを開くと、お使いのブラウザから次の情報がGoogle LLCに送られます。</p>
+    <ul>
+      <li>見たページのURL・タイトル、どこから来たか（参照元）</li>
+      <li>訪問した日時、ページを見ていた時間、ページの最後までスクロールしたかどうか</li>
+      <li>端末・OS・ブラウザの種類、画面の大きさ、言語の設定、IPアドレスから推定したおおよその地域（GoogleアナリティクスはIPアドレスそのものを記録・保存しません）</li>
+      <li>ブラウザを見分けるための識別子（個人の名前やメールアドレスではありません）。本サイトのCookie（_ga、_ga_9JTCX3DEB7。有効期間は最長2年）に保存されます</li>
+      <li>本サイトでの操作の種類（「LINEで送る」「コピー」「画像で保存」などを押したこと、モードや傾斜の切り替え）と、そのときのメンバーの人数・回の数、コピーや保存の方法</li>
+      <li>LINEなどのアプリの中のブラウザで開いたかどうか</li>
+    </ul>
+    <p>入力した内容のうち送るのは、メンバーの人数・回の数・選んだモードや傾斜の種類だけです。名前・ランク・金額・回の名前・LINEの文面は送りません。</p>
+    <p>集計した結果は、本サイトの改善と、利用状況の把握のためだけに使います。Googleアナリティクスでは、ブラウザ・操作ごとの細かなデータを14か月保持します（集計済みの数値は、それより長く残ります）。Googleでの情報の扱いは、<a href="https://policies.google.com/technologies/partner-sites?hl=ja" rel="noopener">Googleのサービスを使用するサイトやアプリから収集した情報のGoogleによる使用</a>と<a href="https://policies.google.com/privacy?hl=ja" rel="noopener">Googleのプライバシーポリシー</a>に従います。</p>
+    <p><strong>計測を止めるには</strong>：下のボタンを押すと、この端末のこのブラウザでは、次に本サイトを開いたときからアクセス解析を読み込みません。あわせて、上のCookieも消します（設定はブラウザの保存領域に残ります。ブラウザのデータを消すと元に戻ります）。ボタンが表示されない場合は、お使いのブラウザがアクセス解析の読み込みを止めているため、本サイトからは何も送られていません。すべてのサイトでGoogleアナリティクスを止めたい場合は、<a href="https://tools.google.com/dlpage/gaoptout?hl=ja" rel="noopener">Googleアナリティクス オプトアウト アドオン</a>も使えます。計測を止めても、本サイトはすべての機能をそのまま使えます。</p>
+    <p class="optout"><button type="button" id="analytics-optout" hidden>この端末での計測を止める</button><span id="analytics-optout-status" role="status" aria-live="polite"></span></p>
 
     <h2>9. 改定</h2>
     <p>このポリシーは必要に応じて改定します。改定した場合は、このページに掲載し、最終改定日を記載します。</p>

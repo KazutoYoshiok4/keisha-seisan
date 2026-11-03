@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <!-- 外部への通信は、アクセス解析（GTM・GA4）とGTMのプレビュー画面に必要な先だけ許可する -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://*.googletagmanager.com https://tagmanager.google.com; style-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://tagmanager.google.com https://fonts.googleapis.com; connect-src https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com https://ssl.gstatic.com https://www.gstatic.com; font-src https://fonts.gstatic.com data:; base-uri 'none'; form-action 'none'">
+  <script src="analytics.js"></script>
   <meta name="theme-color" content="#FFF8EF">
   <title>バイバイ精算｜傾斜つき割り勘・飲み会の幹事に</title>
   <meta name="description" content="役職や年次に合わせて、傾斜をつけて割り勘。1次会・2次会ごとに参加者と傾斜を変えられ、LINEで送る文面まで作れます。登録不要。">
@@ -588,6 +590,20 @@ let exampleUndo = null;
 let undoState = null;
 let lotteryNotice = '';
 let spinning = null;
+// アクセス解析へ操作の種類を渡す（analytics.js が読み込んだGTMが拾う）。名前・金額・文面は入れない。
+// GTMは前に渡した値を覚えているので、使わない項目は毎回 undefined で上書きする。
+const TRACK_KEYS = ['member_count', 'round_count', 'mode', 'result', 'method', 'strength'];
+// 計測で何が起きても、精算の画面には影響させない。
+function track(event, params = {}) {
+  try {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ event, ...Object.fromEntries(TRACK_KEYS.map(key => [key, undefined])), ...params });
+  } catch (_) { /* 送れなくても続行 */ }
+}
+const sizeParams = () => ({ member_count:state.members.length, round_count:state.rounds.length });
+// 入力して初めて精算結果が出たときに1回だけ送る。開いた時点で保存データから結果が出る場合や、入力例では送らない。
+// 最初の描画が終わるまでは null（送らない）。
+let calcReadyTracked = null;
 function memberName(member) { return member.name.trim() || C.defaultName(state.members.indexOf(member)); }
 function roundName(round) { return round.name.trim() || `${state.rounds.indexOf(round) + 1}回目`; }
 function nextRoundName() {
@@ -725,6 +741,7 @@ function refreshCalculated() {
   });
   try {
     settlement = C.calculateSettlement(state.members, state.organizerId, state.rounds.map(numericRound));
+    if (calcReadyTracked === false && !exampleUndo) { calcReadyTracked = true; track('calc_ready', sizeParams()); }
     $('results').innerHTML = `<div class="row"><span class="help">全回の合計</span><span class="sum">${yen(settlement.grandTotal)}</span></div>
       <div class="table-wrap" tabindex="0" role="region" aria-label="1人ごとの回別金額と合計"><table><caption class="sr-only">精算結果</caption>
       <thead><tr><th scope="col">名前</th><th scope="col" class="total-col">合計</th>${state.rounds.map(r => `<th scope="col">${escapeHtml(roundName(r))}</th>`).join('')}</tr></thead>
@@ -874,6 +891,7 @@ document.querySelector('.tabs').addEventListener('click', event => {
   if (!mode || mode === state.mode || spinning) return;
   state.mode = mode;
   clearUndo(); save(); renderMode(); renderLine();
+  track('switch_mode', { mode });
 });
 // 画像にする表。LINEの文面と同じ金額を使う。
 function tableForImage() {
@@ -947,6 +965,7 @@ $('save-image').addEventListener('click', () => {
   const imageFile = new File([bytes], name, { type:'image/png' });
   if (matchMedia('(pointer: coarse)').matches && navigator.canShare && navigator.canShare({ files:[imageFile] })) {
     navigator.share({ files:[imageFile] }).catch(() => {});
+    track('save_image', { method:'share_sheet', mode:state.mode });
     return;
   }
   const url = URL.createObjectURL(imageFile);
@@ -955,6 +974,11 @@ $('save-image').addEventListener('click', () => {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
   $('copy-status').textContent = '画像を保存しました。';
+  track('save_image', { method:'download', mode:state.mode });
+});
+$('share').addEventListener('click', () => {
+  if ($('share').hasAttribute('aria-disabled')) return;
+  track('share_line', { ...sizeParams(), mode:state.mode });
 });
 function renderLine() {
   const outcome = state.mode === 'lottery' ? lotteryOutcome() : null;
@@ -1086,6 +1110,7 @@ $('apply-strength').addEventListener('click', () => {
   state.rounds.forEach(r => { r.strength = state.defaultStrength; });
   const had = state.rounds.some(hasAdjustments);
   resetAdjustments(); changed(had ? '全回の傾斜をそろえ、微調整をリセットしました。' : '');
+  track('apply_strength', { strength:state.defaultStrength });
 });
 $('bulk-strength').addEventListener('change', event => {
   state.defaultStrength = event.target.value;
@@ -1102,6 +1127,7 @@ $('load-example').addEventListener('click', () => {
   } else {
     exampleUndo = snapshot(); state = { ...C.createExample(), defaultStrength:'medium', message:{ ...state.message }, mode:state.mode, lottery:emptyLottery() };
     $('load-example').textContent = '入力例を閉じる'; changed('入力例を表示しています。閉じると元の入力に戻ります（この間は保存しません）。');
+    track('load_example');
   }
 });
 // 使い方の「運試しモードを試してみる」：モードを切り替えて、タブの位置へ移動する。
@@ -1150,12 +1176,15 @@ $('reset-all').addEventListener('click', () => {
   try { localStorage.removeItem(BACKUP_KEY); localStorage.removeItem(INSTALL_TIP_KEY); } catch (_) { backupCleared = false; }
   changed('', true, { state:before, label:'入力をすべて消しました。' });
   if (storageFailed || !backupCleared) { clearUndo(); $('status').textContent = '保存データを消せませんでした。ブラウザの設定から、このサイトのWebサイトデータを削除してください。'; }
+  track('reset_all');
 });
 // 別のタブで保存された内容を取り込み、古い画面で上書きしないようにする。
 window.addEventListener('storage', event => {
   if (event.key !== STORAGE_KEY || event.newValue === null) return;
   let loaded;
   try { loaded = parseState(event.newValue); } catch (_) { return; }
+  // 結果が出たのは別のタブでの入力なので、このタブでは calc_ready を送らない（二重に数えない）。
+  calcReadyTracked = true;
   if (exampleUndo) { exampleUndo = loaded; $('status').textContent = '別のタブで入力が変わりました。入力例を閉じると反映されます。'; return; }
   state = loaded; undoState = null; renderUndo();
   revision++; $('copy-fallback').hidden = true; $('copy-text').value = ''; $('copy-status').textContent = '';
@@ -1206,8 +1235,10 @@ $('copy').addEventListener('click', async () => {
   const text = lineText(), copiedRevision = revision;
   try {
     await navigator.clipboard.writeText(text);
+    track('copy_text', { result:'success', mode:state.mode });
     if (copiedRevision === revision) { $('copy-status').textContent = 'コピーしました。'; $('copy-fallback').hidden = true; }
   } catch (_) {
+    track('copy_text', { result:'fallback', mode:state.mode });
     if (copiedRevision !== revision) return;
     $('copy-status').textContent = '自動でコピーできなかったので、下の文面を選んでコピーしてください。';
     $('copy-fallback').hidden = false; $('copy-text').value = text;
@@ -1215,7 +1246,10 @@ $('copy').addEventListener('click', async () => {
   }
 });
 $('select-text').addEventListener('click', () => { $('copy-text').focus(); $('copy-text').select(); });
+$('message-settings').closest('details').addEventListener('toggle', event => { if (event.target.open) track('open_message_edit'); });
+document.querySelector('header a[href="#guide"]').addEventListener('click', () => track('view_guide'));
 renderAll();
+calcReadyTracked = settlement !== null;
 $('status').textContent = storageNotice;
 </script>
 </body>

@@ -2,7 +2,7 @@
 
 傾斜つき割り勘・飲み会の幹事に。
 
-会社の飲み会の幹事向けの、スマホで操作できる日本語の精算ページです。ログイン・サーバ通信・外部ライブラリ・外部フォントは使いません。
+会社の飲み会の幹事向けの、スマホで操作できる日本語の精算ページです。ログイン・サーバ通信・外部ライブラリ・外部フォントは使いません。アクセス解析（GTM経由のGA4）だけは外部に送りますが、入力した名前・金額・文面は送りません（「アクセス解析」の節）。
 
 ## 起動と使い方
 
@@ -104,7 +104,7 @@
 
 ## ファイルと検証
 
-- `index.html`：画面、操作、保存、LINE用のコピーと共有リンク、使い方。外部リソースの取得や送信なし（「LINEで送る」を押したときだけLINEのページを開きます）。
+- `index.html`：画面、操作、保存、LINE用のコピーと共有リンク、使い方。外部への送信はアクセス解析だけです（「LINEで送る」を押したときはLINEのページを開きます）。
   - 計算ロジックは `index.html` 内の `<script id="settlement-calc">` にあります。DOM・ストレージに依存せず入力を変更しない純粋な計算関数で、ブラウザでは `SettlementCalc` として利用します。
 - `test.js`：Node標準のassertだけを使用。`index.html` から計算ロジックのブロックを取り出して検証します。
 - `icon.svg`：ロゴ（ブラウザのタブのアイコン）。
@@ -112,6 +112,7 @@
 - `ogp.png`：LINEやXでURLを共有したときのプレビュー画像（1200×630）。
 - `terms.html`・`privacy.html`・`about.html`：利用規約・プライバシーポリシー・運営者とお問い合わせ（窓口はGoogleフォーム。フォームは `tools/create-contact-form.gs` で作成）。共通の見た目は `sub.css`。
 - `404.html`：ページが見つからないとき。
+- `analytics.js`：アクセス解析の読み込み。全ページの `<head>` で読み込みます。
 - `CNAME`：公開ドメイン（byebye-seisan.com）。GitHub Pagesで公開し、DNSはCloudflare（プロキシなし）。旧URL（kazutoyoshiok4.github.io/keisha-seisan/）は新ドメインへ自動で転送されます。ドメインを変えるときは、`index.html` の canonical・og:url・og:image の絶対URLもあわせて書き換えます。保存データ（localStorage）はドメインごとに分かれるため、旧URLで保存した入力は引き継がれません。
 - `apple-touch-icon.png`：iPhoneでホーム画面に追加したときのアイコン（180×180）。
 - `README.md`：この説明書。
@@ -121,6 +122,21 @@ node test.js
 ```
 
 例1の全回・全員・個人合計、余りの配分（上位ランクを追い越さないことを含む）、微調整の下限、幹事不参加時の選択、1人参加、0円、入力エラー（型の不正を含む）、特殊なメンバーID、全強度・参加パターンの合計一致、抽選の合計一致と金額の範囲を検証します。画面操作（保存・例の読み込み・削除の取り消しなど）は `test.js` の対象外です。
+
+## アクセス解析
+
+`analytics.js` がGoogleタグマネージャー（`GTM-MVL8DBHK`）を読み込み、GTMからGA4（`G-9JTCX3DEB7`）へ送ります。各ページのCSPは、GTM・GA4とGTMのプレビュー画面に必要な通信先だけを許可しています。`index.html` は `analytics.js` がなくても動き、その場合はどこにも送りません。
+
+- `index.html` は操作を `dataLayer` に渡します。渡すのはイベント名と、人数・回の数などの数や種類だけです。名前・ランク・金額・文面は渡しません。GTMは前に渡した値を覚えているため、使わない項目は毎回 `undefined` で上書きします。
+- イベント：`load_example`（入力例を開いた）、`calc_ready`（入力して初めて精算結果が出た。開いた時点で結果が出ている場合と入力例では送らない）、`share_line`、`copy_text`（`result`：`success`／`fallback`）、`save_image`（`method`：`share_sheet`／`download`）、`switch_mode`、`apply_strength`、`open_message_edit`、`view_guide`、`reset_all`。付ける項目は `member_count`・`round_count`・`mode`・`result`・`method`・`strength`。
+- ページを開いたときに `in_app_browser`（`line`／`instagram`／`facebook`／`none`）を渡します。
+- 運営者の端末は、一度 `?internal=1` を付けて開くと `traffic_type: internal` を渡し、GA4の内部トラフィックのフィルタで除きます。`?internal=0` で外れます。URLの `?internal` は計測の前に消します。
+- プライバシーポリシーの「この端末での計測を止める」を押した端末では、GTMを読み込みません。
+- GA4の「拡張計測機能」の離脱クリックはオフにしています。「LINEで送る」のリンクのURLに名前と金額が入るためです。フォームの操作・ファイルのダウンロード・サイト内検索・動画も、使い道がないのでオフにします。
+- 公開先（byebye-seisan.com）以外で開いたときは、GTMを読み込みません。
+- 計測停止ボタンを押すと、`ga-disable-G-9JTCX3DEB7` を立て、`_ga` で始まるCookieを消します。
+- CSPの connect-src には、Googleの案内にある `https://www.google.com` を入れていません。GA4の本体の送信先（`*.google-analytics.com`）だけで足り、それ以外の送信は止めておくためです。
+- **GTMで守ること**：名前と金額は画面とLINEのリンクに出ているので、GTMが画面から値を拾う仕組みは使いません。クリック・リンクのみ・フォーム・要素の表示・JavaScriptエラー・履歴の変更のトリガー、カスタムHTMLのタグ、カスタムJavaScriptの変数は追加しません。GA4へ送る値は、データレイヤーの変数だけにします。プレビューでは画面の値が見えるので、ダミーの名前で試します。
 
 ## v0の範囲
 
